@@ -48,7 +48,7 @@ app.use(cors({
 }));
 
 // Serve static files from the 'public' directory
-app.use("/pg", express.static(path.join(__dirname, 'public')));
+app.use("/", express.static(path.join(__dirname, 'public')));
 
 const connection = mysql.createPool({
   connectionLimit: 10, // Maximum number of connections in the pool
@@ -87,26 +87,76 @@ app.post('/webhook', (req, res) => {
         const timestamp = new Date();
 
         if (messageBody === 'hi') {
-          // Save the phone number to the database with conversation type and timestamp
-          connection.query('INSERT INTO phone_numbers (phone_number, conversation_type, created_at) VALUES (?, ?, ?)',
-            [senderId, 'greeting', timestamp, senderId, 'greeting', timestamp], (err, result) => {
+        
+          // Insert conversation details into the database
+          connection.query(
+            'INSERT INTO phone_numbers (phone_number, conversation_type) VALUES (?, ?)',
+            [senderId, 'room details'],
+            (err, result) => {
               if (err) {
-                console.error('Error saving phone number to database:', err);
+                console.error('Error saving conversation to database:', err);
               } else {
-                console.log('Phone number saved to database');
+                console.log('Conversation saved to database');
+              }
+            }
+          );
+        
+          // Send WhatsApp message using a template
+          try {
+            sendWhatsAppMessage({
+              messaging_product: "whatsapp",
+              to: senderId,
+              type: "template",
+              template: {
+                name: "_glamstudio_temp_1",
+                language: { code: "en_US" },
+                components: [
+                  {
+                    type: "header",
+                    parameters: [
+                      {
+                        type: "video",
+                        video: { link: "https://a0d0-122-172-82-44.ngrok-free.app/hi_vid.mp4" } // Provide a valid video link
+                      }
+                    ]
+                  },
+                  {
+                    type: "body",
+                    parameters: [
+                      { type: "text", text: "Hello, Syed!" } // Adjust the body text as needed
+                    ]
+                  },
+                  {
+                    type: "button",
+                    sub_type: "quick_reply",
+                    index: "0",
+                    parameters: [
+                      { type: "payload", payload: "Advance" } // Replace with actual payload
+                    ]
+                  },
+                  {
+                    type: "button",
+                    sub_type: "quick_reply",
+                    index: "1",
+                    parameters: [
+                      { type: "payload", payload: "Details" } // Replace with actual payload
+                    ]
+                  },
+                  {
+                    type: "button",
+                    sub_type: "quick_reply",
+                    index: "2",
+                    parameters: [
+                      { type: "payload", payload: "Explore" } // Replace with actual payload
+                    ]
+                  }
+                ]
               }
             });
-
-          sendWhatsAppMessage({
-            messaging_product: "whatsapp",
-            to: senderId,
-            type: "template",
-            template: {
-              name: "glamstudio_temp_1", // Corrected template name
-              language: { code: "en_US" }
-            }
-          });
-        } else if (messageBody === 'Explore Packages') {
+          } catch (err) {
+            console.error('Error sending message:', err);
+          }
+        }else if (messageBody === 'explore packages') {
           connection.query('INSERT INTO phone_numbers (phone_number, conversation_type, created_at) VALUES (?, ?, ?)',
             [senderId, 'room details', timestamp, senderId, 'room details', timestamp], (err, result) => {
               if (err) {
@@ -121,11 +171,11 @@ app.post('/webhook', (req, res) => {
             to: senderId,
             type: "template",
             template: {
-              name: "pg_temp_2", // Corrected template name
+              name: "_glamstudio_temp_2", // Corrected template name
               language: { code: "en_US" }
             }
           });
-        } else if (messageBody === 'Availability Calendar') {
+        } else if (messageBody === 'availability calendar') {
           // Query to fetch all dates from the calendar table
           connection.query('SELECT date FROM calander WHERE active = 1', (err, results) => {
             if (err) {
