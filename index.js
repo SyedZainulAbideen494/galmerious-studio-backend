@@ -125,30 +125,6 @@ app.post('/glast/webhook', (req, res) => {
                     parameters: [
                       { type: "text", text: "Hello, Syed!" } // Adjust the body text as needed
                     ]
-                  },
-                  {
-                    type: "button",
-                    sub_type: "quick_reply",
-                    index: "0",
-                    parameters: [
-                      { type: "payload", payload: "Advance" } // Replace with actual payload
-                    ]
-                  },
-                  {
-                    type: "button",
-                    sub_type: "quick_reply",
-                    index: "1",
-                    parameters: [
-                      { type: "payload", payload: "Details" } // Replace with actual payload
-                    ]
-                  },
-                  {
-                    type: "button",
-                    sub_type: "quick_reply",
-                    index: "2",
-                    parameters: [
-                      { type: "payload", payload: "Explore" } // Replace with actual payload
-                    ]
                   }
                 ]
               }
