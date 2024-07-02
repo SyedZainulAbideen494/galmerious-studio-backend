@@ -292,7 +292,7 @@ function sendWhatsAppMessage(data) {
       'Content-Type': 'application/json'
     }
   };
-
+console.log(JSON.stringify(response.data))
   axios.post('https://graph.facebook.com/v19.0/332700683252247/messages', data, config)
     .then(response => {
       console.log('Message sent successfully:', JSON.stringify(response.data));
