@@ -117,7 +117,7 @@ app.post('/glast/webhook', (req, res) => {
                     parameters: [
                       {
                         type: "video",
-                        video: { link: "https://kraftpoint.in/glast/test.mp4" } // Provide a valid video link
+                        video: { link: "https://kraftpoint.in/glast/hi_vid.mp4" } // Provide a valid video link
                       }
                     ]
                   }
