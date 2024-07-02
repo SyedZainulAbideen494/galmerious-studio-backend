@@ -349,7 +349,7 @@ app.get('/webhook', (req, res) => {
 
 
 // GET endpoint for testing
-app.get('/', (req, res) => {
+app.get('/glast', (req, res) => {
   res.send('Welcome to the Facebook Messenger webhook!');
 });
 
