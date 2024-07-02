@@ -87,11 +87,12 @@ app.post('/glast/webhook', (req, res) => {
         const timestamp = new Date();
 
         if (messageBody === 'hi') {
+          const timestamp = Math.floor(Date.now() / 1000); // Current timestamp in seconds
         
           // Insert conversation details into the database
           connection.query(
-            'INSERT INTO phone_numbers (phone_number, conversation_type) VALUES (?, ?)',
-            [senderId, 'room details'],
+            'INSERT INTO phone_numbers (phone_number, conversation_type, created_at) VALUES (?, ?, ?)',
+            [senderId, 'room details', timestamp],
             (err, result) => {
               if (err) {
                 console.error('Error saving conversation to database:', err);
@@ -118,12 +119,6 @@ app.post('/glast/webhook', (req, res) => {
                         type: "video",
                         video: { link: "https://kraftpoint.in/glast/hi_vid.mp4" } // Provide a valid video link
                       }
-                    ]
-                  },
-                  {
-                    type: "body",
-                    parameters: [
-                      { type: "text", text: "Hello, Syed!" } // Adjust the body text as needed
                     ]
                   }
                 ]
@@ -292,10 +287,10 @@ function sendWhatsAppMessage(data) {
       'Content-Type': 'application/json'
     }
   };
-console.log(JSON.stringify(data))
+
   axios.post('https://graph.facebook.com/v19.0/332700683252247/messages', data, config)
     .then(response => {
-      console.log('Message sent successfully:', JSON.stringify(response.data));
+      console.log('Message sent successfully:', response.data);
     })
     .catch(error => {
       console.error('Error sending message:', error.response.data);
