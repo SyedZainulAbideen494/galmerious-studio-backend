@@ -127,7 +127,27 @@ app.post('/glast/webhook', (req, res) => {
           } catch (err) {
             console.error('Error sending message:', err);
           }
-        }else if (messageBody === 'explore packages') {
+        }else if (messageBody === 'custom events package') {
+          userStates[senderId].step = 20; // Update user state to indicate the current step
+          sendWhatsAppMessage({
+            messaging_product: "whatsapp",
+            to: senderId,
+            type: "text",
+            text: {
+              body: "That sounds exciting! 😊\n\nPlease share with us the details of your custom events package.\nWe'd love to know about your event, including the name, type, date, number of guests,\nand any special requests or preferences you have.\n\nThis will help us tailor our services just for you!"
+            }
+          });
+        }  else if (userState.step === 20) {
+          const issueDescription = messageBody;
+          // Here you can save the issue to a database or handle it accordingly.
+          userState.step = 0;
+          sendWhatsAppMessage({
+              messaging_product: "whatsapp",
+              to: senderId,
+              type: "text",
+              text: { body: "Thank you for the details out team will get back to you shortly" }
+          });
+      }else if (messageBody === 'explore packages') {
           const pdfUrl = 'https://kraftpoint.in/glast/glamourstudiobrochure.pdf'; // Replace with your actual PDF URL
         
           // Save conversation to database for the first message (template message)
@@ -204,26 +224,7 @@ app.post('/glast/webhook', (req, res) => {
               language: { code: "en_US" }
             }
           });
-        }else if (messageBody === 'custom events package') {
-          connection.query('INSERT INTO phone_numbers (phone_number, conversation_type, created_at) VALUES (?, ?, ?)',
-            [senderId, 'custom events package', timestamp, senderId, 'room details', timestamp], (err, result) => {
-              if (err) {
-                console.error('Error saving conversation to database:', err);
-              } else {
-                console.log('Conversation saved to database');
-              }
-            });
-
-          sendWhatsAppMessage({
-            messaging_product: "whatsapp",
-            to: senderId,
-            type: "template",
-            template: {
-              name: "glamours_studio_temp_5", // Corrected template name
-              language: { code: "en_US" }
-            }
-          });
-        } else if (messageBody === 'availability calendar') {
+        }else if (messageBody === 'availability calendar') {
           // Query to fetch all dates from the calendar table
           connection.query('SELECT date FROM calander WHERE active = 1', (err, results) => {
             if (err) {
