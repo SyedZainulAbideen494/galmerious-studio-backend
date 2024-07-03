@@ -88,7 +88,6 @@ app.post('/glast/webhook', (req, res) => {
         const timestamp = new Date();
 
         if (messageBody === 'hi') {
-        
           // Insert conversation details into the database
           connection.query(
             'INSERT INTO phone_numbers (phone_number, conversation_type, created_at) VALUES (?, ?, ?)',
@@ -101,7 +100,7 @@ app.post('/glast/webhook', (req, res) => {
               }
             }
           );
-        
+
           // Send WhatsApp message using a template
           try {
             sendWhatsAppMessage({
@@ -127,7 +126,7 @@ app.post('/glast/webhook', (req, res) => {
           } catch (err) {
             console.error('Error sending message:', err);
           }
-        }else if (messageBody === 'custom events package') {
+        } else if (messageBody === 'custom events package') {
           userStates[senderId].step = 20; // Update user state to indicate the current step
           sendWhatsAppMessage({
             messaging_product: "whatsapp",
@@ -137,7 +136,7 @@ app.post('/glast/webhook', (req, res) => {
               body: "That sounds exciting! 😊\n\nPlease share with us the details of your custom events package.\nWe'd love to know about your event, including the name, type, date, number of guests,\nand any special requests or preferences you have.\n\nThis will help us tailor our services just for you!"
             }
           });
-        } } else if (userStates[senderId].step === 20) {
+        } else if (userStates[senderId].step === 20) {
           const issueDescription = messageBody;
           // Here you can save the issue to a database or handle it accordingly.
           userStates[senderId].step = 0;
@@ -147,9 +146,9 @@ app.post('/glast/webhook', (req, res) => {
             type: "text",
             text: { body: "Thank you for the details. Our team will get back to you shortly." }
           });
-        }else if (messageBody === 'explore packages') {
+        } else if (messageBody === 'explore packages') {
           const pdfUrl = 'https://kraftpoint.in/glast/glamourstudiobrochure.pdf'; // Replace with your actual PDF URL
-        
+
           // Save conversation to database for the first message (template message)
           connection.query(
             'INSERT INTO phone_numbers (phone_number, conversation_type, created_at) VALUES (?, ?, ?)',
@@ -159,7 +158,7 @@ app.post('/glast/webhook', (req, res) => {
                 console.error('Error saving conversation to database:', err);
               } else {
                 console.log('Conversation saved to database');
-                
+
                 // Send WhatsApp template message
                 sendWhatsAppMessage({
                   messaging_product: "whatsapp",
@@ -167,14 +166,14 @@ app.post('/glast/webhook', (req, res) => {
                   to: senderId,
                   type: "document",
                   document: {
-                      link: "https://kraftpoint.in/glast/glamourstudiobrochure.pdf",
-                      caption: "Check out our brochure"
+                    link: "https://kraftpoint.in/glast/glamourstudiobrochure.pdf",
+                    caption: "Check out our brochure"
                   }
-              });
+                });
               }
             }
           );
-        
+
           // Send WhatsApp message with PDF attachment
           sendWhatsAppMessage({
             messaging_product: "whatsapp",
@@ -185,48 +184,33 @@ app.post('/glast/webhook', (req, res) => {
               language: { code: "en_US" }
             }
           });
-        }else if (messageBody === 'nikah + valima combo') {
-          connection.query('INSERT INTO phone_numbers (phone_number, conversation_type, created_at) VALUES (?, ?, ?)',
-            [senderId, 'Nikah + Valima Combo', timestamp, senderId, 'room details', timestamp], (err, result) => {
+        } else if (messageBody === 'nikah + valima combo' || messageBody === 'full wedding package') {
+          const conversationType = messageBody === 'nikah + valima combo' ? 'Nikah + Valima Combo' : 'Full Wedding Package';
+          connection.query(
+            'INSERT INTO phone_numbers (phone_number, conversation_type, created_at) VALUES (?, ?, ?)',
+            [senderId, conversationType, timestamp],
+            (err, result) => {
               if (err) {
                 console.error('Error saving conversation to database:', err);
               } else {
                 console.log('Conversation saved to database');
-              }
-            });
 
-         sendWhatsAppMessage({
-            messaging_product: "whatsapp",
-            to: senderId,
-            type: "template",
-            template: {
-              name: "glamours_studio_temp_4", // Corrected template name
-              language: { code: "en_US" }
-            }
-          });
-        } 
-        else if (messageBody === 'full wedding package') {
-          connection.query('INSERT INTO phone_numbers (phone_number, conversation_type, created_at) VALUES (?, ?, ?)',
-            [senderId, 'full wedding package', timestamp, senderId, 'room details', timestamp], (err, result) => {
-              if (err) {
-                console.error('Error saving conversation to database:', err);
-              } else {
-                console.log('Conversation saved to database');
+                // Send WhatsApp template message
+                sendWhatsAppMessage({
+                  messaging_product: "whatsapp",
+                  to: senderId,
+                  type: "template",
+                  template: {
+                    name: "glamours_studio_temp_4", // Corrected template name
+                    language: { code: "en_US" }
+                  }
+                });
               }
-            });
-
-          sendWhatsAppMessage({
-            messaging_product: "whatsapp",
-            to: senderId,
-            type: "template",
-            template: {
-              name: "glamours_studio_temp_4", // Corrected template name
-              language: { code: "en_US" }
             }
-          });
-        }else if (messageBody === 'availability calendar') {
+          );
+        } else if (messageBody === 'availability calendar') {
           // Query to fetch all dates from the calendar table
-          connection.query('SELECT date FROM calander WHERE active = 1', (err, results) => {
+          connection.query('SELECT date FROM calendar WHERE active = 1', (err, results) => {
             if (err) {
               console.error('Error fetching unavailable dates from database:', err);
               sendWhatsAppMessage({
@@ -239,107 +223,112 @@ app.post('/glast/webhook', (req, res) => {
               });
               return;
             }
-        
+
             // Format the fetched dates
-                // Format the fetched dates
-                const unavailableDates = results
-                .map(result => `\n- ${moment(result.date).format('YYYY-MM-DD')}`)
-                .join('\n');
-          
-              // Send the message with the unavailable dates
-              sendWhatsAppMessage({
-                messaging_product: "whatsapp",
-                to: senderId,
-                type: "text",
-                text: {
-                  body: `The following dates are currently unavailable:\n${unavailableDates}\n\nWe recommend booking your appointment on available dates.`
-                }
-              });
-            });
-          }else if (messageBody === 'book appointment') {
-            connection.query('INSERT INTO phone_numbers (phone_number, conversation_type, created_at) VALUES (?, ?, ?)',
-              [senderId, 'custom events package', timestamp, senderId, 'room details', timestamp], (err, result) => {
-                if (err) {
-                  console.error('Error saving conversation to database:', err);
-                } else {
-                  console.log('Conversation saved to database');
-                }
-              });
-  
+            const unavailableDates = results
+              .map(result => `\n- ${moment(result.date).format('YYYY-MM-DD')}`)
+              .join('\n');
+
+            // Send the message with the unavailable dates
             sendWhatsAppMessage({
               messaging_product: "whatsapp",
               to: senderId,
-              type: "template",
-              template: {
-                name: "galmorus_studio_temp_5", // Corrected template name
-                language: { code: "en_US" }
+              type: "text",
+              text: {
+                body: `The following dates are currently unavailable:\n${unavailableDates}\n\nWe recommend booking your appointment on available dates.`
               }
             });
-            }else if (messageBody === 'advance booking') {
-            connection.query('INSERT INTO phone_numbers (phone_number, conversation_type, created_at) VALUES (?, ?, ?)',
-              [senderId, 'advance booking', timestamp, senderId, 'advance booking', timestamp], (err, result) => {
-                if (err) {
-                  console.error('Error saving conversation to database:', err);
-                } else {
-                  console.log('Conversation saved to database');
-                }
-              });
-  
-            // Create a Stripe checkout session
-            stripe.checkout.sessions.create({
-              payment_method_types: ['card'],
-              line_items: [{
-                price_data: {
-                  currency: 'inr',
-                  product_data: {
-                    name: 'Advance Booking',
-                  },
-                  unit_amount: 300000, // ₹3000.00
+          });
+        } else if (messageBody === 'book appointment') {
+          connection.query(
+            'INSERT INTO phone_numbers (phone_number, conversation_type, created_at) VALUES (?, ?, ?)',
+            [senderId, 'book appointment', timestamp],
+            (err, result) => {
+              if (err) {
+                console.error('Error saving conversation to database:', err);
+              } else {
+                console.log('Conversation saved to database');
+              }
+            }
+          );
+
+          sendWhatsAppMessage({
+            messaging_product: "whatsapp",
+            to: senderId,
+            type: "template",
+            template: {
+              name: "galmorus_studio_temp_5", // Corrected template name
+              language: { code: "en_US" }
+            }
+          });
+        } else if (messageBody === 'advance booking') {
+          connection.query(
+            'INSERT INTO phone_numbers (phone_number, conversation_type, created_at) VALUES (?, ?, ?)',
+            [senderId, 'advance booking', timestamp],
+            (err, result) => {
+              if (err) {
+                console.error('Error saving conversation to database:', err);
+              } else {
+                console.log('Conversation saved to database');
+              }
+            }
+          );
+
+          // Create a Stripe checkout session
+          stripe.checkout.sessions.create({
+            payment_method_types: ['card'],
+            line_items: [{
+              price_data: {
+                currency: 'inr',
+                product_data: {
+                  name: 'Advance Booking',
                 },
-                quantity: 1,
-              }],
-              mode: 'payment',
-              success_url: `${SUCCESS_URL}${senderId}`,
-              cancel_url: CANCEL_URL,
-            }).then(session => {
-              sendWhatsAppMessage({
-                messaging_product: "whatsapp",
-                to: senderId,
-                type: "text",
-                text: {
-                  body: `Please complete your payment using the following link:\n${session.url}`
-                }
-              });
-            }).catch(err => {
-              console.error('Error creating Stripe session:', err);
-              sendWhatsAppMessage({
-                messaging_product: "whatsapp",
-                to: senderId,
-                type: "text",
-                text: {
-                  body: "Sorry, there was an error processing your payment. Please try again later."
-                }
-              });
+                unit_amount: 300000, // ₹3000.00
+              },
+              quantity: 1,
+            }],
+            mode: 'payment',
+            success_url: `${SUCCESS_URL}${senderId}`,
+            cancel_url: CANCEL_URL,
+          }).then(session => {
+            sendWhatsAppMessage({
+              messaging_product: "whatsapp",
+              to: senderId,
+              type: "text",
+              text: {
+                body: `Please complete your payment by clicking the link below:\n${session.url}`
+              }
             });
-          } else {
+          }).catch(err => {
+            console.error('Error creating Stripe checkout session:', err);
+            sendWhatsAppMessage({
+              messaging_product: "whatsapp",
+              to: senderId,
+              type: "text",
+              text: {
+                body: "Sorry, we encountered an error while processing your booking. Please try again later."
+              }
+            });
+          });
+        } else {
+          // Default response for unrecognized messages
           sendWhatsAppMessage({
             messaging_product: "whatsapp",
             to: senderId,
             type: "text",
-            text: {
-              body: "Sorry, I didn't understand that. Please type 'hi' for assistance."
-            }
+            text: { body: "I'm sorry, I don't understand that command. Please type 'hi' to get started." }
           });
         }
       }
     }
-
-    res.sendStatus(200); // Respond to the webhook POST request
+    res.status(200).send('EVENT_RECEIVED');
   } catch (error) {
-    console.error('Error processing the webhook:', error);
-    res.sendStatus(500); // Internal Server Error
+    console.error('Error processing request:', error);
+    res.status(500).send('Error processing request');
   }
 });
+
+
 
 
 async function handlePaymentSuccess(sessionId, senderId) {
