@@ -137,17 +137,17 @@ app.post('/glast/webhook', (req, res) => {
               body: "That sounds exciting! 😊\n\nPlease share with us the details of your custom events package.\nWe'd love to know about your event, including the name, type, date, number of guests,\nand any special requests or preferences you have.\n\nThis will help us tailor our services just for you!"
             }
           });
-        }  else if (userState.step === 20) {
+        } } else if (userStates[senderId].step === 20) {
           const issueDescription = messageBody;
           // Here you can save the issue to a database or handle it accordingly.
-          userState.step = 0;
+          userStates[senderId].step = 0;
           sendWhatsAppMessage({
-              messaging_product: "whatsapp",
-              to: senderId,
-              type: "text",
-              text: { body: "Thank you for the details out team will get back to you shortly" }
+            messaging_product: "whatsapp",
+            to: senderId,
+            type: "text",
+            text: { body: "Thank you for the details. Our team will get back to you shortly." }
           });
-      }else if (messageBody === 'explore packages') {
+        }else if (messageBody === 'explore packages') {
           const pdfUrl = 'https://kraftpoint.in/glast/glamourstudiobrochure.pdf'; // Replace with your actual PDF URL
         
           // Save conversation to database for the first message (template message)
