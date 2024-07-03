@@ -162,19 +162,20 @@ app.post('/glast/webhook', (req, res) => {
             }
         
             // Format the fetched dates
-            const unavailableDates = results.map(result => result.date).join(', ');
-        
-            // Send the message with the unavailable dates
-            sendWhatsAppMessage({
-              messaging_product: "whatsapp",
-              to: senderId,
-              type: "text",
-              text: {
-                body: `The following dates are currently unavailable: ${unavailableDates}. We recommend booking your appointment on available dates.`
-              }
-            });
-          });
-        } else {
+                // Format the fetched dates
+    const unavailableDates = results.map(result => `\n- ${result.date}`).join('');
+
+    // Send the message with the unavailable dates
+    sendWhatsAppMessage({
+      messaging_product: "whatsapp",
+      to: senderId,
+      type: "text",
+      text: {
+        body: `The following dates are currently unavailable:\n${unavailableDates}\n\nWe recommend booking your appointment on available dates.`
+      }
+    });
+  });
+}else {
           sendWhatsAppMessage({
             messaging_product: "whatsapp",
             to: senderId,
