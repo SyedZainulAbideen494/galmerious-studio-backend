@@ -133,7 +133,7 @@ app.post('/glast/webhook', (req, res) => {
           // Save conversation to database
           connection.query(
             'INSERT INTO phone_numbers (phone_number, conversation_type, created_at) VALUES (?, ?, ?)',
-            [senderId, 'Nikah + Valima Combo', timestamp],
+            [senderId, 'explore packages', timestamp],
             (err, result) => {
               if (err) {
                 console.error('Error saving conversation to database:', err);
@@ -149,15 +149,20 @@ app.post('/glast/webhook', (req, res) => {
             to: senderId,
             type: "template",
             template: {
-              name: "glamstudio_temp_2", // Corrected template name
-              language: { code: "en_US" }
-            },
-            media: [{
-              type: "document",
-              document: {
-                url: pdfUrl
-              }
-            }]
+              name: "_glamstudio_temp_1",
+              language: { code: "en_US" },
+              components: [
+                {
+                  media: [{
+                    type: "document",
+                    document: {
+                      url: pdfUrl,
+                      caption: "Check out our packages!" // Optional caption for the PDF
+                    }
+                  }]
+                }
+              ]
+            }
           });
         }else if (messageBody === 'nikah + valima combo') {
           connection.query('INSERT INTO phone_numbers (phone_number, conversation_type, created_at) VALUES (?, ?, ?)',
