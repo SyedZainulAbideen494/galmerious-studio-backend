@@ -19,6 +19,7 @@ const stripe = require('stripe')('sk_test_51LoS3iSGyKMMAZwstPlmLCEi1eBUy7MsjYxiK
 const { PDFDocument, StandardFonts, rgb } = require('pdf-lib');
 const QRCode = require('qrcode');
 const fs = require('fs');
+const moment = require('moment');
 
 // URL Constants
 const BASE_URL = 'https://kraftpoint.in/glast';
@@ -163,19 +164,21 @@ app.post('/glast/webhook', (req, res) => {
         
             // Format the fetched dates
                 // Format the fetched dates
-    const unavailableDates = results.map(result => `\n- ${result.date}`).join('');
-
-    // Send the message with the unavailable dates
-    sendWhatsAppMessage({
-      messaging_product: "whatsapp",
-      to: senderId,
-      type: "text",
-      text: {
-        body: `The following dates are currently unavailable:\n${unavailableDates}\n\nWe recommend booking your appointment on available dates.`
-      }
-    });
-  });
-}else {
+                const unavailableDates = results
+                .map(result => `\n- ${moment(result.date).format('YYYY-MM-DD')}`)
+                .join('\n');
+          
+              // Send the message with the unavailable dates
+              sendWhatsAppMessage({
+                messaging_product: "whatsapp",
+                to: senderId,
+                type: "text",
+                text: {
+                  body: `The following dates are currently unavailable:\n${unavailableDates}\n\nWe recommend booking your appointment on available dates.`
+                }
+              });
+            });
+          }else {
           sendWhatsAppMessage({
             messaging_product: "whatsapp",
             to: senderId,
