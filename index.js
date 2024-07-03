@@ -87,7 +87,6 @@ app.post('/glast/webhook', (req, res) => {
         const timestamp = new Date();
 
         if (messageBody === 'hi') {
-          const timestamp = Math.floor(Date.now() / 1000); // Current timestamp in seconds
         
           // Insert conversation details into the database
           connection.query(
@@ -148,7 +147,7 @@ app.post('/glast/webhook', (req, res) => {
           });
         } else if (messageBody === 'availability calendar') {
           // Query to fetch all dates from the calendar table
-          connection.query('SELECT date FROM calander WHERE active = 1', (err, results) => {
+          connection.query('SELECT date FROM calendar WHERE active = 1', (err, results) => {
             if (err) {
               console.error('Error fetching unavailable dates from database:', err);
               sendWhatsAppMessage({
@@ -159,32 +158,21 @@ app.post('/glast/webhook', (req, res) => {
                   body: "Sorry, we encountered an error while fetching the availability calendar. Please try again later."
                 }
               });
-            } else {
-              const unavailableDates = results.map(row => row.date.toISOString().split('T')[0]).join(', ');
-              const message = unavailableDates.length > 0 ? 
-                `Hello! Unfortunately, we are not available on the following dates: ${unavailableDates}. We recommend booking an appointment or making an advance booking to ensure your spot. How can we assist you further?` : 
-                'Hello! We are available on all upcoming dates. Feel free to book an appointment or make an advance booking to secure your spot. How can we assist you further?';
-        
-              // Insert the conversation into the phone_numbers table
-              connection.query('INSERT INTO phone_numbers (phone_number, conversation_type, created_at) VALUES (?, ?, ?)',
-                [senderId, 'Availability Calendar', timestamp], (err, result) => {
-                  if (err) {
-                    console.error('Error saving conversation to database:', err);
-                  } else {
-                    console.log('Conversation saved to database');
-                  }
-                });
-        
-              // Send the response message with unavailable dates
-              sendWhatsAppMessage({
-                messaging_product: "whatsapp",
-                to: senderId,
-                type: "text",
-                text: {
-                  body: message
-                }
-              });
+              return;
             }
+        
+            // Format the fetched dates
+            const unavailableDates = results.map(result => result.date).join(', ');
+        
+            // Send the message with the unavailable dates
+            sendWhatsAppMessage({
+              messaging_product: "whatsapp",
+              to: senderId,
+              type: "text",
+              text: {
+                body: `The following dates are currently unavailable: ${unavailableDates}. We recommend booking your appointment on available dates.`
+              }
+            });
           });
         } else {
           sendWhatsAppMessage({
