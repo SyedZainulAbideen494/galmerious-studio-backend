@@ -129,7 +129,7 @@ app.post('/glast/webhook', (req, res) => {
           }
         }else if (messageBody === 'explore packages') {
           connection.query('INSERT INTO phone_numbers (phone_number, conversation_type, created_at) VALUES (?, ?, ?)',
-            [senderId, 'room details', timestamp, senderId, 'room details', timestamp], (err, result) => {
+            [senderId, 'Nikah + Valima Combo', timestamp, senderId, 'room details', timestamp], (err, result) => {
               if (err) {
                 console.error('Error saving conversation to database:', err);
               } else {
@@ -143,6 +143,25 @@ app.post('/glast/webhook', (req, res) => {
             type: "template",
             template: {
               name: "_glamstudio_temp_2", // Corrected template name
+              language: { code: "en_US" }
+            }
+          });
+        } else if (messageBody === 'Nikah + Valima Combo') {
+          connection.query('INSERT INTO phone_numbers (phone_number, conversation_type, created_at) VALUES (?, ?, ?)',
+            [senderId, 'Nikah + Valima Combo', timestamp, senderId, 'room details', timestamp], (err, result) => {
+              if (err) {
+                console.error('Error saving conversation to database:', err);
+              } else {
+                console.log('Conversation saved to database');
+              }
+            });
+
+          sendWhatsAppMessage({
+            messaging_product: "whatsapp",
+            to: senderId,
+            type: "template",
+            template: {
+              name: "galmorus_studio_temp_3", // Corrected template name
               language: { code: "en_US" }
             }
           });
