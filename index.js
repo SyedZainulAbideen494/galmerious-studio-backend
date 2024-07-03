@@ -146,7 +146,7 @@ app.post('/glast/webhook', (req, res) => {
               language: { code: "en_US" }
             }
           });
-        } else if (messageBody === 'Nikah + Valima Combo') {
+        } else if (messageBody === 'nikah + valima combo') {
           connection.query('INSERT INTO phone_numbers (phone_number, conversation_type, created_at) VALUES (?, ?, ?)',
             [senderId, 'Nikah + Valima Combo', timestamp, senderId, 'room details', timestamp], (err, result) => {
               if (err) {
