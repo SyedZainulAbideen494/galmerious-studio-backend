@@ -128,15 +128,22 @@ app.post('/glast/webhook', (req, res) => {
             console.error('Error sending message:', err);
           }
         }else if (messageBody === 'explore packages') {
-          connection.query('INSERT INTO phone_numbers (phone_number, conversation_type, created_at) VALUES (?, ?, ?)',
-            [senderId, 'Nikah + Valima Combo', timestamp, senderId, 'room details', timestamp], (err, result) => {
+          const pdfUrl = 'https://kraftpoint.in/glast/glamourstudiobrochure.pdf'; // Replace with your actual PDF URL
+        
+          // Save conversation to database
+          connection.query(
+            'INSERT INTO phone_numbers (phone_number, conversation_type, created_at) VALUES (?, ?, ?)',
+            [senderId, 'Nikah + Valima Combo', timestamp],
+            (err, result) => {
               if (err) {
                 console.error('Error saving conversation to database:', err);
               } else {
                 console.log('Conversation saved to database');
               }
-            });
-
+            }
+          );
+        
+          // Send WhatsApp message with PDF attachment
           sendWhatsAppMessage({
             messaging_product: "whatsapp",
             to: senderId,
@@ -144,9 +151,15 @@ app.post('/glast/webhook', (req, res) => {
             template: {
               name: "glamstudio_temp_2", // Corrected template name
               language: { code: "en_US" }
-            }
+            },
+            media: [{
+              type: "document",
+              document: {
+                url: pdfUrl
+              }
+            }]
           });
-        } else if (messageBody === 'nikah + valima combo') {
+        }else if (messageBody === 'nikah + valima combo') {
           connection.query('INSERT INTO phone_numbers (phone_number, conversation_type, created_at) VALUES (?, ?, ?)',
             [senderId, 'Nikah + Valima Combo', timestamp, senderId, 'room details', timestamp], (err, result) => {
               if (err) {
