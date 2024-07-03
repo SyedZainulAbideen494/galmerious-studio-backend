@@ -142,7 +142,7 @@ app.post('/glast/webhook', (req, res) => {
             to: senderId,
             type: "template",
             template: {
-              name: "_glamstudio_temp_2", // Corrected template name
+              name: "glamstudio_temp_2", // Corrected template name
               language: { code: "en_US" }
             }
           });
