@@ -165,6 +165,45 @@ app.post('/glast/webhook', (req, res) => {
               language: { code: "en_US" }
             }
           });
+        } 
+        else if (messageBody === 'full wedding package') {
+          connection.query('INSERT INTO phone_numbers (phone_number, conversation_type, created_at) VALUES (?, ?, ?)',
+            [senderId, 'full wedding package', timestamp, senderId, 'room details', timestamp], (err, result) => {
+              if (err) {
+                console.error('Error saving conversation to database:', err);
+              } else {
+                console.log('Conversation saved to database');
+              }
+            });
+
+          sendWhatsAppMessage({
+            messaging_product: "whatsapp",
+            to: senderId,
+            type: "template",
+            template: {
+              name: "glamours_studio_temp_4", // Corrected template name
+              language: { code: "en_US" }
+            }
+          });
+        }else if (messageBody === 'custom events package') {
+          connection.query('INSERT INTO phone_numbers (phone_number, conversation_type, created_at) VALUES (?, ?, ?)',
+            [senderId, 'custom events package', timestamp, senderId, 'room details', timestamp], (err, result) => {
+              if (err) {
+                console.error('Error saving conversation to database:', err);
+              } else {
+                console.log('Conversation saved to database');
+              }
+            });
+
+          sendWhatsAppMessage({
+            messaging_product: "whatsapp",
+            to: senderId,
+            type: "template",
+            template: {
+              name: "glamours_studio_temp_5", // Corrected template name
+              language: { code: "en_US" }
+            }
+          });
         } else if (messageBody === 'availability calendar') {
           // Query to fetch all dates from the calendar table
           connection.query('SELECT date FROM calander WHERE active = 1', (err, results) => {
