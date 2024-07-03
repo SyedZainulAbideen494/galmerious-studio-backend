@@ -130,15 +130,26 @@ app.post('/glast/webhook', (req, res) => {
         }else if (messageBody === 'explore packages') {
           const pdfUrl = 'https://kraftpoint.in/glast/glamourstudiobrochure.pdf'; // Replace with your actual PDF URL
         
-          // Save conversation to database
+          // Save conversation to database for the first message (template message)
           connection.query(
             'INSERT INTO phone_numbers (phone_number, conversation_type, created_at) VALUES (?, ?, ?)',
-            [senderId, 'explore packages', timestamp],
+            [senderId, 'Nikah + Valima Combo', timestamp],
             (err, result) => {
               if (err) {
                 console.error('Error saving conversation to database:', err);
               } else {
                 console.log('Conversation saved to database');
+                
+                // Send WhatsApp template message
+                sendWhatsAppMessage({
+                  messaging_product: "whatsapp",
+                  to: senderId,
+                  type: "template",
+                  template: {
+                    name: "_glamstudio_temp_2", // Corrected template name
+                    language: { code: "en_US" }
+                  }
+                });
               }
             }
           );
@@ -147,21 +158,10 @@ app.post('/glast/webhook', (req, res) => {
           sendWhatsAppMessage({
             messaging_product: "whatsapp",
             to: senderId,
-            type: "template",
-            template: {
-              name: "_glamstudio_temp_1",
-              language: { code: "en_US" },
-              components: [
-                {
-                  media: [{
-                    type: "document",
-                    document: {
-                      url: pdfUrl,
-                      caption: "Check out our packages!" // Optional caption for the PDF
-                    }
-                  }]
-                }
-              ]
+            type: "document",
+            document: {
+              url: pdfUrl,
+              caption: "Check out our packages!" // Optional caption for the PDF
             }
           });
         }else if (messageBody === 'nikah + valima combo') {
