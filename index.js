@@ -147,7 +147,7 @@ app.post('/glast/webhook', (req, res) => {
           });
         } else if (messageBody === 'availability calendar') {
           // Query to fetch all dates from the calendar table
-          connection.query('SELECT date FROM calendar WHERE active = 1', (err, results) => {
+          connection.query('SELECT date FROM calander WHERE active = 1', (err, results) => {
             if (err) {
               console.error('Error fetching unavailable dates from database:', err);
               sendWhatsAppMessage({
