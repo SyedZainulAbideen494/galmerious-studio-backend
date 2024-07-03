@@ -236,7 +236,53 @@ app.post('/glast/webhook', (req, res) => {
                 }
               });
             });
-          }else {
+          }else if (messageBody === 'advance booking') {
+            connection.query('INSERT INTO phone_numbers (phone_number, conversation_type, created_at) VALUES (?, ?, ?)',
+              [senderId, 'advance booking', timestamp, senderId, 'advance booking', timestamp], (err, result) => {
+                if (err) {
+                  console.error('Error saving conversation to database:', err);
+                } else {
+                  console.log('Conversation saved to database');
+                }
+              });
+  
+            // Create a Stripe checkout session
+            stripe.checkout.sessions.create({
+              payment_method_types: ['card'],
+              line_items: [{
+                price_data: {
+                  currency: 'inr',
+                  product_data: {
+                    name: 'Advance Booking',
+                  },
+                  unit_amount: 300000, // ₹3000.00
+                },
+                quantity: 1,
+              }],
+              mode: 'payment',
+              success_url: `${SUCCESS_URL}${senderId}`,
+              cancel_url: CANCEL_URL,
+            }).then(session => {
+              sendWhatsAppMessage({
+                messaging_product: "whatsapp",
+                to: senderId,
+                type: "text",
+                text: {
+                  body: `Please complete your payment using the following link:\n${session.url}`
+                }
+              });
+            }).catch(err => {
+              console.error('Error creating Stripe session:', err);
+              sendWhatsAppMessage({
+                messaging_product: "whatsapp",
+                to: senderId,
+                type: "text",
+                text: {
+                  body: "Sorry, there was an error processing your payment. Please try again later."
+                }
+              });
+            });
+          } else {
           sendWhatsAppMessage({
             messaging_product: "whatsapp",
             to: senderId,
@@ -272,7 +318,6 @@ async function handlePaymentSuccess(sessionId, senderId) {
       senderId: senderId,
     };
 
-    await connection.execute('INSERT INTO advance_ticket (ticket_id, amount, currency, customer_email, sender_id) VALUES (?, ?, ?, ?, ?)', [ticketDetails.ticketId, ticketDetails.amount, ticketDetails.currency, ticketDetails.customerEmail, ticketDetails.senderId]);
 
     const pdfBytes = await generateTicketPDF(ticketDetails);
     const filePath = path.join(__dirname, 'public', 'tickets', `${ticketDetails.ticketId}.pdf`);
