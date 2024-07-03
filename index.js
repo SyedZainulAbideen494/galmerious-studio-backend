@@ -143,13 +143,14 @@ app.post('/glast/webhook', (req, res) => {
                 // Send WhatsApp template message
                 sendWhatsAppMessage({
                   messaging_product: "whatsapp",
+                  recipient_type: "individual",
                   to: senderId,
-                  type: "template",
-                  template: {
-                    name: "_glamstudio_temp_2", // Corrected template name
-                    language: { code: "en_US" }
+                  type: "document",
+                  document: {
+                      link: "https://kraftpoint.in/glast/glamourstudiobrochure.pdf",
+                      caption: "Check out our brochure"
                   }
-                });
+              });
               }
             }
           );
@@ -158,10 +159,10 @@ app.post('/glast/webhook', (req, res) => {
           sendWhatsAppMessage({
             messaging_product: "whatsapp",
             to: senderId,
-            type: "document",
-            document: {
-              url: pdfUrl,
-              caption: "Check out our packages!" // Optional caption for the PDF
+            type: "template",
+            template: {
+              name: "_glamstudio_temp_2", // Corrected template name
+              language: { code: "en_US" }
             }
           });
         }else if (messageBody === 'nikah + valima combo') {
@@ -174,12 +175,12 @@ app.post('/glast/webhook', (req, res) => {
               }
             });
 
-          sendWhatsAppMessage({
+         sendWhatsAppMessage({
             messaging_product: "whatsapp",
             to: senderId,
             type: "template",
             template: {
-              name: "galmorus_studio_temp_3", // Corrected template name
+              name: "glamours_studio_temp_4", // Corrected template name
               language: { code: "en_US" }
             }
           });
