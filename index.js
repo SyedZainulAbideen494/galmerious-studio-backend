@@ -138,15 +138,37 @@ app.post('/glast/webhook', (req, res) => {
           });
         } else if (userStates[senderId].step === 20) {
           const issueDescription = messageBody;
-          // Here you can save the issue to a database or handle it accordingly.
-          userStates[senderId].step = 0;
-          sendWhatsAppMessage({
-            messaging_product: "whatsapp",
-            to: senderId,
-            type: "text",
-            text: { body: "Thank you for the details. Our team will get back to you shortly." }
+          // Prepare an object with data to insert into the database
+          const eventData = {
+            sender_id: senderId,
+            message_body: issueDescription,
+            created_at: new Date().toISOString().slice(0, 19).replace('T', ' ') // Format: YYYY-MM-DD HH:MM:SS
+          };
+        
+          // Insert into MySQL table `custom_event`
+          const insertQuery = 'INSERT INTO custom_event (sender_id, message_body, created_at) VALUES (?, ?, ?)';
+          pool.query(insertQuery, [eventData.sender_id, eventData.message_body, eventData.created_at], (error, results, fields) => {
+            if (error) {
+              console.error('Error inserting event data into MySQL:', error);
+              // Handle error
+              sendWhatsAppMessage({
+                messaging_product: "whatsapp",
+                to: senderId,
+                type: "text",
+                text: { body: "Sorry, there was an issue saving your message. Please try again later." }
+              });
+            } else {
+              console.log('Event data inserted successfully into MySQL.');
+              userStates[senderId].step = 0;
+              sendWhatsAppMessage({
+                messaging_product: "whatsapp",
+                to: senderId,
+                type: "text",
+                text: { body: "Thank you for the details. Our team will get back to you shortly." }
+              });
+            }
           });
-        } else if (messageBody === 'explore packages') {
+        }else if (messageBody === 'explore packages') {
           const pdfUrl = 'https://kraftpoint.in/glast/glamourstudiobrochure.pdf'; // Replace with your actual PDF URL
 
           // Save conversation to database for the first message (template message)
@@ -643,6 +665,20 @@ app.put('/glast/api/events/deactivate/:eventId', (req, res) => {
   });
 });
 
+app.get('/api/custom/events', (req, res) => {
+  // Query to fetch all records
+  const query = 'SELECT * FROM custom_event';
+
+  // Execute query
+  pool.query(query, (error, results) => {
+    if (error) {
+      console.error('Error fetching events from MySQL:', error);
+      res.status(500).json({ error: 'Failed to fetch events' });
+    } else {
+      res.json(results);
+    }
+  });
+});
 
 app.listen(PORT, () => {
   console.log(`Server is running on port ${PORT}`);
