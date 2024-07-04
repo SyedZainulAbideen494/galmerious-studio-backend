@@ -147,7 +147,7 @@ app.post('/glast/webhook', (req, res) => {
         
           // Insert into MySQL table `custom_event`
           const insertQuery = 'INSERT INTO custom_event (sender_id, message_body, created_at) VALUES (?, ?, ?)';
-          pool.query(insertQuery, [eventData.sender_id, eventData.message_body, eventData.created_at], (error, results, fields) => {
+          connection.query(insertQuery, [eventData.sender_id, eventData.message_body, eventData.created_at], (error, results, fields) => {
             if (error) {
               console.error('Error inserting event data into MySQL:', error);
               // Handle error
