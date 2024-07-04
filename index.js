@@ -210,7 +210,7 @@ app.post('/glast/webhook', (req, res) => {
           );
         } else if (messageBody === 'availability calendar') {
           // Query to fetch all dates from the calendar table
-          connection.query('SELECT date FROM calendar WHERE active = 1', (err, results) => {
+          connection.query('SELECT date FROM calander WHERE active = 1', (err, results) => {
             if (err) {
               console.error('Error fetching unavailable dates from database:', err);
               sendWhatsAppMessage({
@@ -346,6 +346,7 @@ async function handlePaymentSuccess(sessionId, senderId) {
       senderId: senderId,
     };
 
+    await connection.execute('INSERT INTO advance_ticket (ticket_id, amount, currency, customer_email, sender_id) VALUES (?, ?, ?, ?, ?)', [ticketDetails.ticketId, ticketDetails.amount, ticketDetails.currency, ticketDetails.customerEmail, ticketDetails.senderId]);
 
     const pdfBytes = await generateTicketPDF(ticketDetails);
     const filePath = path.join(__dirname, 'public', 'tickets', `${ticketDetails.ticketId}.pdf`);
@@ -463,6 +464,172 @@ app.get('/glast/success', async (req, res) => {
   }
 });
 
+/*Admin Panel code*/
+app.get('/glast/api/calendarCounts', async (req, res) => {
+  try {
+    // Query to count events by month where active = 1
+    const calendarQuery = `
+      SELECT 
+        MONTH(date) AS month,
+        COUNT(*) AS count
+      FROM calander
+      WHERE active = 1
+      GROUP BY MONTH(date)
+      ORDER BY MONTH(date)
+    `;
+    const calendarResults = await query(calendarQuery, []);
+
+    res.json(calendarResults);
+  } catch (error) {
+    console.error('Error fetching calendar data:', error);
+    res.status(500).json({ error: 'Error fetching calendar data' });
+  }
+});
+
+
+const query = (sql, params) => {
+  return new Promise((resolve, reject) => {
+    connection.query(sql, params, (error, results) => {
+      if (error) {
+        return reject(error);
+      }
+      resolve(results);
+    });
+  });
+};
+
+app.post('/glast/getCalendarEventsCount', async (req, res) => {
+  try {
+    // Fetch all columns from calendar where active = 1
+    const calendarResults = await query('SELECT * FROM calander WHERE active = 1');
+    
+    // Count the number of results
+    const count = calendarResults.length;
+
+    // Send the results along with the count
+    res.json({ events: calendarResults, count });
+  } catch (error) {
+    console.error('Error fetching calendar events count:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+app.post('/glast/countPhoneNumbers', (req, res) => {
+  // Query to count all entries in the phone_numbers table
+  const countPhoneNumbersQuery = `SELECT COUNT(*) AS phoneNumberCount FROM phone_numbers where conversation_type = 'book appointment'`;
+  
+  connection.query(countPhoneNumbersQuery, (err, results) => {
+    if (err) {
+      console.error('Error counting phone numbers:', err);
+      res.status(500).json({ error: 'Internal Server Error' });
+      return;
+    }
+
+    const phoneNumberCount = results[0].phoneNumberCount;
+    res.json({ phoneNumberCount });
+  });
+});
+
+app.post('/glast/getRegistrationsCount', async (req, res) => {
+   // Query to count all entries in the phone_numbers table
+   const countPhoneNumbersQuery = `SELECT COUNT(*) AS phoneNumberCount FROM phone_numbers`;
+  
+   connection.query(countPhoneNumbersQuery, (err, results) => {
+     if (err) {
+       console.error('Error counting phone numbers:', err);
+       res.status(500).json({ error: 'Internal Server Error' });
+       return;
+     }
+ 
+     const phoneNumberCount = results[0].phoneNumberCount;
+     res.json({ phoneNumberCount });
+   });
+});
+
+app.get('/glast/getAppointments', async (req, res) => {
+  try {
+    // Query to fetch appointments
+    const query = 'SELECT phone_number, created_at FROM phone_numbers WHERE conversation_type = "book appointment"';
+    const results = await queryDatabase(query); // Replace with your actual query function
+    res.json(results);
+  } catch (error) {
+    console.error('Error fetching appointments:', error);
+    res.status(500).json({ error: 'Internal Server Error' });
+  }
+});
+
+// Function to perform the query
+const queryDatabase = (query, params = []) => {
+  return new Promise((resolve, reject) => {
+    connection.query(query, params, (err, results) => {
+      if (err) {
+        reject(err);
+      } else {
+        resolve(results);
+      }
+    });
+  });
+};
+
+
+
+// Route to fetch all advance tickets
+app.get('/glast/api/advance_tickets', async (req, res) => {
+  try {
+    // Query to fetch appointments
+    const query = 'SELECT * FROM advance_ticket';
+    const results = await queryDatabase(query); // Replace with your actual query function
+    res.json(results);
+  } catch (error) {
+    console.error('Error fetching appointments:', error);
+    res.status(500).json({ error: 'Internal Server Error' });
+  }
+});
+
+app.post('/glast/api/create_event', (req, res) => {
+  const { eventName, eventDate } = req.body;
+
+  // Insert data into calendar table
+  const insertQuery = 'INSERT INTO calander (event_name, date, active) VALUES (?, ?, ?)';
+  connection.query(insertQuery, [eventName, eventDate, '1'], (err, results) => {
+    if (err) {
+      console.error('Error inserting event:', err);
+      res.status(500).json({ error: 'Failed to create event. Please try again later.' });
+      return;
+    }
+
+    console.log('Event created successfully.');
+    res.json({ message: 'Event created successfully.' });
+  });
+});
+
+
+// Fetch all events
+app.get('/glast/api/events', (req, res) => {
+  connection.query('SELECT * FROM calander', (error, results, fields) => {
+    if (error) {
+      console.error('Error fetching events:', error);
+      res.status(500).json({ error: 'Internal Server Error' });
+      return;
+    }
+    res.json(results);
+  });
+});
+
+// Update event active status
+app.put('/glast/api/events/deactivate/:eventId', (req, res) => {
+  const { eventId } = req.params;
+  const { active } = req.body;
+
+  connection.query('UPDATE calander SET active = ? WHERE id = ?', [active, eventId], (error, results, fields) => {
+    if (error) {
+      console.error('Error updating event:', error);
+      res.status(500).json({ error: 'Internal Server Error' });
+      return;
+    }
+    res.json({ message: `Event ${eventId} updated successfully.` });
+  });
+});
 
 
 app.listen(PORT, () => {
