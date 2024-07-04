@@ -643,7 +643,7 @@ app.post('/glast/api/create_event', upload.single('eventImage'), (req, res) => {
   }
 
   // Insert data into calendar table
-  const insertQuery = 'INSERT INTO calander (event_name, date, time, location, type, image_path, active) VALUES (?, ?, ?, ?, ?, ?, ?)';
+  const insertQuery = 'INSERT INTO calander (event_name, date, event_time, event_location, event_type, image_path, active) VALUES (?, ?, ?, ?, ?, ?, ?)';
   connection.query(insertQuery, [eventName, eventDate, eventTime, eventLocation, eventType, eventImagePath, '1'], (err, results) => {
     if (err) {
       console.error('Error inserting event:', err);
