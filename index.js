@@ -665,7 +665,7 @@ app.put('/glast/api/events/deactivate/:eventId', (req, res) => {
   });
 });
 
-app.get('/api/custom/events', (req, res) => {
+app.get('glast/api/custom/events', (req, res) => {
   // Query to fetch all records
   const query = 'SELECT * FROM custom_event';
 
