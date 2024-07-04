@@ -637,14 +637,14 @@ app.post('/glast/api/create_event', upload.single('eventImage'), (req, res) => {
   const { eventName, eventDate, eventTime, eventLocation, eventType } = req.body;
 
   // Handle file upload if exists
-  let eventImagePath = null;
+  let eventImageName = null;
   if (req.file) {
-    eventImagePath = req.file.path; // Path where the uploaded file is stored
+    eventImageName = req.file.originalname; // Use the original filename of the uploaded file
   }
 
   // Insert data into calendar table
-  const insertQuery = 'INSERT INTO calander (event_name, date, event_time, event_location, event_type, image_path, active) VALUES (?, ?, ?, ?, ?, ?, ?)';
-  connection.query(insertQuery, [eventName, eventDate, eventTime, eventLocation, eventType, eventImagePath, '1'], (err, results) => {
+  const insertQuery = 'INSERT INTO calander (event_name, date, event_time, event_location, event_type, image_name, active) VALUES (?, ?, ?, ?, ?, ?, ?)';
+  connection.query(insertQuery, [eventName, eventDate, eventTime, eventLocation, eventType, eventImageName, '1'], (err, results) => {
     if (err) {
       console.error('Error inserting event:', err);
       res.status(500).json({ error: 'Failed to create event. Please try again later.' });
