@@ -698,6 +698,23 @@ app.get('/glast/api/custom/events', (req, res) => {
   });
 });
 
+app.get('/glast/api/events/:eventId', (req, res) => {
+  const eventId = req.params.eventId;
+  const query = 'SELECT * FROM calander WHERE id = ?'; // Adjust query based on your schema
+  connection.query(query, [eventId], (err, results) => {
+    if (err) {
+      console.error('Error fetching event details:', err);
+      res.status(500).json({ error: 'Failed to fetch event details. Please try again later.' });
+      return;
+    }
+    if (results.length === 0) {
+      res.status(404).json({ error: 'Event not found.' });
+      return;
+    }
+    res.json(results[0]);
+  });
+});
+
 app.listen(PORT, () => {
   console.log(`Server is running on port ${PORT}`);
 });
