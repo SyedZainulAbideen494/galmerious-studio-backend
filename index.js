@@ -35,7 +35,7 @@ app.use(cookieParser());
 // Multer configuration for handling file uploads
 const storage = multer.diskStorage({
   destination: function (req, file, cb) {
-    cb(null, 'public/banners'); // Uploads folder where files will be stored
+    cb(null, 'public/banners/'); // Uploads folder where files will be stored
   },
   filename: function (req, file, cb) {
     // Generating a unique filename
