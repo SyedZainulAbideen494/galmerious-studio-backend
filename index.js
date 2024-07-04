@@ -558,6 +558,18 @@ app.get('/glast/getAppointments', async (req, res) => {
   }
 });
 
+app.get('/glast/getquarry', async (req, res) => {
+  try {
+    // Query to fetch appointments
+    const query = 'SELECT phone_number, created_at, conversation_type FROM phone_numbers';
+    const results = await queryDatabase(query); // Replace with your actual query function
+    res.json(results);
+  } catch (error) {
+    console.error('Error fetching appointments:', error);
+    res.status(500).json({ error: 'Internal Server Error' });
+  }
+});
+
 // Function to perform the query
 const queryDatabase = (query, params = []) => {
   return new Promise((resolve, reject) => {
