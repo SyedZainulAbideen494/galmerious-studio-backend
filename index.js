@@ -670,7 +670,7 @@ app.get('/api/custom/events', (req, res) => {
   const query = 'SELECT * FROM custom_event';
 
   // Execute query
-  pool.query(query, (error, results) => {
+  connection.query(query, (error, results) => {
     if (error) {
       console.error('Error fetching events from MySQL:', error);
       res.status(500).json({ error: 'Failed to fetch events' });
