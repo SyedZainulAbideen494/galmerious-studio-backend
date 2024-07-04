@@ -32,6 +32,19 @@ app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
 app.use(cookieParser());
 
+// Multer configuration for handling file uploads
+const storage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    cb(null, 'public/banners'); // Uploads folder where files will be stored
+  },
+  filename: function (req, file, cb) {
+    // Generating a unique filename
+    cb(null, Date.now() + '-' + file.originalname);
+  }
+});
+
+const upload = multer({ storage: storage });
+
 app.use(session({
   key: "userId",
   secret: "Englishps4",
@@ -620,12 +633,18 @@ app.get('/glast/api/advance_tickets', async (req, res) => {
   }
 });
 
-app.post('/glast/api/create_event', (req, res) => {
-  const { eventName, eventDate } = req.body;
+app.post('/glast/api/create_event', upload.single('eventImage'), (req, res) => {
+  const { eventName, eventDate, eventTime, eventLocation, eventType } = req.body;
+
+  // Handle file upload if exists
+  let eventImagePath = null;
+  if (req.file) {
+    eventImagePath = req.file.path; // Path where the uploaded file is stored
+  }
 
   // Insert data into calendar table
-  const insertQuery = 'INSERT INTO calander (event_name, date, active) VALUES (?, ?, ?)';
-  connection.query(insertQuery, [eventName, eventDate, '1'], (err, results) => {
+  const insertQuery = 'INSERT INTO calendar (event_name, date, time, location, type, image_path, active) VALUES (?, ?, ?, ?, ?, ?, ?)';
+  connection.query(insertQuery, [eventName, eventDate, eventTime, eventLocation, eventType, eventImagePath, '1'], (err, results) => {
     if (err) {
       console.error('Error inserting event:', err);
       res.status(500).json({ error: 'Failed to create event. Please try again later.' });
@@ -636,7 +655,6 @@ app.post('/glast/api/create_event', (req, res) => {
     res.json({ message: 'Event created successfully.' });
   });
 });
-
 
 // Fetch all events
 app.get('/glast/api/events', (req, res) => {
