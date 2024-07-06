@@ -150,7 +150,7 @@ app.post('/glast/webhook', (req, res) => {
                 type: "flow",
                 header: {
                   type: "text",
-                  text: "Shipping Details",
+                  text: "Custom Event Details",
                 },
                 body: {
                   text: "Hey there👋\n\n please enter the details about your event",
