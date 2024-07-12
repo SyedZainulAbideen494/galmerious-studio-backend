@@ -21,7 +21,7 @@ const QRCode = require('qrcode');
 const fs = require('fs');
 
 // URL Constants
-const BASE_URL = 'https://kraftpoint.in/glast/';
+const BASE_URL = 'https://kraftpoint.in/glast';
 const SUCCESS_URL = `${BASE_URL}/success?session_id={CHECKOUT_SESSION_ID}&sender_id=`;
 const CANCEL_URL = `${BASE_URL}/cancel`;
 const TICKET_URL = `${BASE_URL}/tickets/`;
