@@ -48,7 +48,7 @@ app.use(cors({
 }));
 
 // Serve static files from the 'public' directory
-app.use("/", express.static(path.join(__dirname, 'public')));
+app.use("/glast", express.static(path.join(__dirname, 'public')));
 
 const connection = mysql.createPool({
   connectionLimit: 10, // Maximum number of connections in the pool
@@ -68,7 +68,7 @@ connection.getConnection((err) => {
 
 const userStates = {};
 
-app.post('/webhook', (req, res) => {
+app.post('/glast/webhook', (req, res) => {
   console.log('Incoming POST request:', JSON.stringify(req.body, null, 2)); // Log incoming POST request payload
 
   try {
@@ -790,7 +790,7 @@ function sendWhatsAppMessage(data) {
 // Webhook verification endpoint (GET request)
 const VERIFY_TOKEN = 'EAAFsUoRPg1QBOzpnPGEpxBDKEw93j35D2V0Qg5C8O58FNQZAxWXWMo0XJZB6ezMoUWY6xNC6AhPGUZCjt0w8AJwuyAfkhjnZAn73tOU88pXhTxAJevtKm1GSGkDFwh5y79N1eX9LWhD3ceZAZBr36MDd1fgAy0mP9UfVDIugUDGxcl64vAhpNuj7FkbG36HGJn3RQus1iw92DiNn4w';
 
-app.get('/webhook', (req, res) => {
+app.get('/glast/webhook', (req, res) => {
     const mode = req.query['hub.mode'];
     const token = req.query['hub.verify_token'];
     const challenge = req.query['hub.challenge'];
@@ -810,12 +810,12 @@ app.get('/webhook', (req, res) => {
 
 
 // GET endpoint for testing
-app.get('/', (req, res) => {
+app.get('/glast', (req, res) => {
   res.send('Welcome to the Facebook Messenger webhook!');
 });
 
 // Success endpoint to handle successful payments
-app.get('/success', async (req, res) => {
+app.get('/glast/success', async (req, res) => {
   const sessionId = req.query.session_id;
   const senderId = req.query.sender_id;
   if (!sessionId || !senderId) {
@@ -833,7 +833,7 @@ app.get('/success', async (req, res) => {
 
 /*Admin Panel code*/
 
-app.post('/addUser', (req, res) => {
+app.post('/glast/addUser', (req, res) => {
   const {
     phone_no,
     email,
@@ -901,9 +901,9 @@ const verifyjwt = (req, res) => {
   }
 };
 
-app.get("/userAuth", verifyjwt, (req, res) => { });
+app.get("/glast/userAuth", verifyjwt, (req, res) => { });
 
-app.get("/login", (req, res) => {
+app.get("/glast/login", (req, res) => {
   if (req.session.user) {
     res.send({ loggedIn: true, user: req.session.user });
   } else {
@@ -911,7 +911,7 @@ app.get("/login", (req, res) => {
   }
 });
 
-app.post("/login", (req, res) => {
+app.post("/glast/login", (req, res) => {
   const email = req.body.email;
   const password = req.body.password;
 
@@ -950,7 +950,7 @@ app.post("/login", (req, res) => {
   );
 });
 
-app.put('/edit/member/:memberId', (req, res) => {
+app.put('/glast/edit/member/:memberId', (req, res) => {
   const memberId = req.params.memberId;
   const { name, phoneno, building, floor, flat, room, bed } = req.body;
 
@@ -1042,7 +1042,7 @@ app.put('/edit/member/:memberId', (req, res) => {
   });
 });
 
-app.post('/add/members', (req, res) => {
+app.post('/glast/add/members', (req, res) => {
   const { name, phoneNumber, bed, building, floor, flat, room } = req.body;
 
   // Get the bed_id
@@ -1121,7 +1121,7 @@ app.post('/add/members', (req, res) => {
 });
 
 
-app.get('/display/members', (req, res) => {
+app.get('/glast/display/members', (req, res) => {
   const membersQuery = 'SELECT * FROM members WHERE active = 1';
 
   connection.query(membersQuery, (err, membersResults) => {
@@ -1248,7 +1248,7 @@ app.get('/display/members', (req, res) => {
 });
 
 
-app.get('/api/vacancies', (req, res) => {
+app.get('/glast/api/vacancies', (req, res) => {
   const vacancies = { '1 sharing': 0, '2 sharing': 0, '3 sharing': 0, '4 sharing': 0 };
 
   // Query to count vacancies for each sharing type
@@ -1276,7 +1276,7 @@ app.get('/api/vacancies', (req, res) => {
   });
 });
 
-app.get('/advance_tickets', (req, res) => {
+app.get('/glast/advance_tickets', (req, res) => {
   const query = 'SELECT * FROM advance_ticket';
 
   connection.query(query, (err, results) => {
@@ -1290,7 +1290,7 @@ app.get('/advance_tickets', (req, res) => {
 });
 
 
-app.get('/api/phone-numbers', (req, res) => {
+app.get('/glast/api/phone-numbers', (req, res) => {
   const query = 'SELECT * FROM phone_numbers';
 
   connection.query(query, (err, results) => {
@@ -1303,7 +1303,7 @@ app.get('/api/phone-numbers', (req, res) => {
     res.json(results);
   });
 });
-app.post('/addMembers', (req, res) => {
+app.post('/glast/addMembers', (req, res) => {
   const { name, phoneNo, bedId } = req.body;
 
   connection.query('INSERT INTO members (name, phoneno, bed_id) VALUES (?, ?, ?)', [name, phoneNo, bedId], (err, results) => {
@@ -1316,7 +1316,7 @@ app.post('/addMembers', (req, res) => {
   });
 });
 
-app.get('/beds/:sharing', (req, res) => {
+app.get('/glast/beds/:sharing', (req, res) => {
   const sharing = req.params.sharing;
 
   connection.query(`
@@ -1339,7 +1339,7 @@ app.get('/beds/:sharing', (req, res) => {
   });
 });
 
-app.put('/api/updateMember/:id', (req, res) => {
+app.put('/glast/api/updateMember/:id', (req, res) => {
   const memberId = req.params.id;
 
   const sqlUpdateMember = 'UPDATE members SET active = ? WHERE member_id = ?';
