@@ -19,6 +19,7 @@ const stripe = require('stripe')('sk_test_51LoS3iSGyKMMAZwstPlmLCEi1eBUy7MsjYxiK
 const { PDFDocument, StandardFonts, rgb } = require('pdf-lib');
 const QRCode = require('qrcode');
 const fs = require('fs');
+const moment = require('moment');
 
 // URL Constants
 const BASE_URL = 'https://kraftpoint.in/glast';
@@ -30,6 +31,19 @@ const DOCUMENT_URL = `${BASE_URL}/documents/`;
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
 app.use(cookieParser());
+
+// Multer configuration for handling file uploads
+const storage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    cb(null, 'public/'); // Uploads folder where files will be stored
+  },
+  filename: function (req, file, cb) {
+    // Generating a unique filename
+    cb(null, Date.now() + '-' + file.originalname);
+  }
+});
+
+const upload = multer({ storage: storage });
 
 app.use(session({
   key: "userId",
@@ -55,7 +69,7 @@ const connection = mysql.createPool({
   host: "localhost",
   user: "root",
   password: "Englishps#4",
-  database: "whatsapp_pg",
+  database: "glamourstudio",
 });
 
 connection.getConnection((err) => {
@@ -87,558 +101,238 @@ app.post('/glast/webhook', (req, res) => {
         const timestamp = new Date();
 
         if (messageBody === 'hi') {
-          // Save the phone number to the database with conversation type and timestamp
-          connection.query('INSERT INTO phone_numbers (phone_number, conversation_type, created_at) VALUES (?, ?, ?)',
-            [senderId, 'greeting', timestamp, senderId, 'greeting', timestamp], (err, result) => {
+          // Insert conversation details into the database
+          connection.query(
+            'INSERT INTO phone_numbers (phone_number, conversation_type, created_at) VALUES (?, ?, ?)',
+            [senderId, 'room details', timestamp],
+            (err, result) => {
               if (err) {
-                console.error('Error saving phone number to database:', err);
+                console.error('Error saving conversation to database:', err);
               } else {
-                console.log('Phone number saved to database');
+                console.log('Conversation saved to database');
+              }
+            }
+          );
+
+          // Send WhatsApp message using a template
+          try {
+            sendWhatsAppMessage({
+              messaging_product: "whatsapp",
+              to: senderId,
+              type: "template",
+              template: {
+                name: "_glamstudio_temp_1",
+                language: { code: "en_US" },
+                components: [
+                  {
+                    type: "header",
+                    parameters: [
+                      {
+                        type: "video",
+                        video: { link: "https://kraftpoint.in/glast/hi_vid.mp4" } // Provide a valid video link
+                      }
+                    ]
+                  }
+                ]
               }
             });
+          } catch (err) {
+            console.error('Error sending message:', err);
+          }
+        } else if (messageBody === 'custom events package') {
+          userStates[senderId].step = 20; // Update user state to indicate the current step
+          sendWhatsAppMessage({
+              recipient_type: "individual",
+              messaging_product: "whatsapp",
+              to: senderId,
+              type: "interactive",
+              interactive: {
+                type: "flow",
+                header: {
+                  type: "text",
+                  text: "Custom Event Details",
+                },
+                body: {
+                  text: "Hey there👋\n\n please enter the details about your event",
+                },
+                footer: {
+                  text: "Click the button below to enter the details",
+                },
+                action: {
+                  name: "flow",
+                  parameters: {
+                    flow_message_version: "3",
+                    flow_token: "AQAAAAACS5FpgQ_cAAAAAD0QI3s.",
+                    flow_id: '486692000608369',
+                    flow_cta: "Enter Details",
+                    flow_action: "navigate",
+                    flow_action_payload: {
+                      screen: "CUSTOMER_DETAILS", // Change this to the appropriate screen ID
+                      data: { firstName: "Mohammed" }, // You can pass additional data here if needed
+                    },
+                  },
+                },
+            }
+          });
+        } else if (userStates[senderId].step === 20) {
+          const issueDescription = messageBody;
+          // Prepare an object with data to insert into the database
+          const eventData = {
+            sender_id: senderId,
+            message_body: issueDescription,
+            created_at: new Date().toISOString().slice(0, 19).replace('T', ' ') // Format: YYYY-MM-DD HH:MM:SS
+          };
+        
+          // Insert into MySQL table `custom_event`
+          const insertQuery = 'INSERT INTO custom_event (sender_id, message_body, created_at) VALUES (?, ?, ?)';
+          connection.query(insertQuery, [eventData.sender_id, eventData.message_body, eventData.created_at], (error, results, fields) => {
+            if (error) {
+              console.error('Error inserting event data into MySQL:', error);
+              // Handle error
+              sendWhatsAppMessage({
+                messaging_product: "whatsapp",
+                to: senderId,
+                type: "text",
+                text: { body: "Sorry, there was an issue saving your message. Please try again later." }
+              });
+            } else {
+              console.log('Event data inserted successfully into MySQL.');
+              userStates[senderId].step = 0;
+              sendWhatsAppMessage({
+                messaging_product: "whatsapp",
+                to: senderId,
+                type: "text",
+                text: { body: "Thank you for the details. Our team will get back to you shortly." }
+              });
+            }
+          });
+        }else if (messageBody === 'explore packages') {
+          const pdfUrl = 'https://kraftpoint.in/glast/glamourstudiobrochure.pdf'; // Replace with your actual PDF URL
+
+          // Save conversation to database for the first message (template message)
+          connection.query(
+            'INSERT INTO phone_numbers (phone_number, conversation_type, created_at) VALUES (?, ?, ?)',
+            [senderId, 'Nikah + Valima Combo', timestamp],
+            (err, result) => {
+              if (err) {
+                console.error('Error saving conversation to database:', err);
+              } else {
+                console.log('Conversation saved to database');
+
+                // Send WhatsApp template message
+                sendWhatsAppMessage({
+                  messaging_product: "whatsapp",
+                  recipient_type: "individual",
+                  to: senderId,
+                  type: "document",
+                  document: {
+                    link: "https://kraftpoint.in/glast/glamourstudiobrochure.pdf",
+                    caption: "Check out our brochure"
+                  }
+                });
+              }
+            }
+          );
+
+          // Send WhatsApp message with PDF attachment
+          sendWhatsAppMessage({
+            messaging_product: "whatsapp",
+            to: senderId,
+            type: "template",
+            template: {
+              name: "_glamstudio_temp_2_", // Corrected template name
+              language: { code: "en_US" }
+            }
+          });
+        } else if (messageBody === 'nikah + valima combo' || messageBody === 'full wedding package') {
+          const conversationType = messageBody === 'nikah + valima combo' ? 'Nikah + Valima Combo' : 'Full Wedding Package';
+          connection.query(
+            'INSERT INTO phone_numbers (phone_number, conversation_type, created_at) VALUES (?, ?, ?)',
+            [senderId, conversationType, timestamp],
+            (err, result) => {
+              if (err) {
+                console.error('Error saving conversation to database:', err);
+              } else {
+                console.log('Conversation saved to database');
+
+                // Send WhatsApp template message
+                sendWhatsAppMessage({
+                  messaging_product: "whatsapp",
+                  to: senderId,
+                  type: "template",
+                  template: {
+                    name: "glamours_studio_temp_4", // Corrected template name
+                    language: { code: "en_US" }
+                  }
+                });
+              }
+            }
+          );
+        } else if (messageBody === 'availability calendar') {
+          // Query to fetch all dates from the calendar table
+          connection.query('SELECT date FROM calander WHERE active = 1', (err, results) => {
+            if (err) {
+              console.error('Error fetching unavailable dates from database:', err);
+              sendWhatsAppMessage({
+                messaging_product: "whatsapp",
+                to: senderId,
+                type: "text",
+                text: {
+                  body: "Sorry, we encountered an error while fetching the availability calendar. Please try again later."
+                }
+              });
+              return;
+            }
+
+            // Format the fetched dates
+            const unavailableDates = results
+              .map(result => `\n- ${moment(result.date).format('YYYY-MM-DD')}`)
+              .join('\n');
+
+            // Send the message with the unavailable dates
+            sendWhatsAppMessage({
+              messaging_product: "whatsapp",
+              to: senderId,
+              type: "text",
+              text: {
+                body: `The following dates are currently unavailable:\n${unavailableDates}\n\nWe recommend booking your appointment on available dates.`
+              }
+            });
+          });
+        } else if (messageBody === 'book appointment') {
+          connection.query(
+            'INSERT INTO phone_numbers (phone_number, conversation_type, created_at) VALUES (?, ?, ?)',
+            [senderId, 'book appointment', timestamp],
+            (err, result) => {
+              if (err) {
+                console.error('Error saving conversation to database:', err);
+              } else {
+                console.log('Conversation saved to database');
+              }
+            }
+          );
 
           sendWhatsAppMessage({
             messaging_product: "whatsapp",
             to: senderId,
             type: "template",
             template: {
-              name: "pg_temp_1", // Corrected template name
+              name: "galmorus_studio_temp_5", // Corrected template name
               language: { code: "en_US" }
             }
           });
-        } else if (messageBody === 'room details') {
-          connection.query('INSERT INTO phone_numbers (phone_number, conversation_type, created_at) VALUES (?, ?, ?)',
-            [senderId, 'room details', timestamp, senderId, 'room details', timestamp], (err, result) => {
-              if (err) {
-                console.error('Error saving conversation to database:', err);
-              } else {
-                console.log('Conversation saved to database');
-              }
-            });
-
-          sendWhatsAppMessage({
-            messaging_product: "whatsapp",
-            to: senderId,
-            type: "template",
-            template: {
-              name: "pg_temp_2", // Corrected template name
-              language: { code: "en_US" }
-            }
-          });
-        } else if (messageBody === 'amenities') {
-          connection.query('INSERT INTO phone_numbers (phone_number, conversation_type, created_at) VALUES (?, ?, ?)',
-            [senderId, 'amenities', timestamp, senderId, 'amenities', timestamp], (err, result) => {
-              if (err) {
-                console.error('Error saving conversation to database:', err);
-              } else {
-                console.log('Conversation saved to database');
-              }
-            });
-
-          sendWhatsAppMessage({
-            messaging_product: "whatsapp",
-            to: senderId,
-            type: "template",
-            template: {
-              name: "amenities_pg_temp_3", // Corrected template name
-              language: { code: "en_US" }
-            }
-          });
-        } else if (messageBody === 'location and directions') {
-          connection.query('INSERT INTO phone_numbers (phone_number, conversation_type, created_at) VALUES (?, ?, ?)',
-            [senderId, 'location and directions', timestamp, senderId, 'location and directions', timestamp], (err, result) => {
-              if (err) {
-                console.error('Error saving conversation to database:', err);
-              } else {
-                console.log('Conversation saved to database');
-              }
-            });
-
-          sendWhatsAppMessage({
-            messaging_product: "whatsapp",
-            to: senderId,
-            type: "text",
-            text: {
-              body: "Hello! 😊 We're excited to welcome you to our PG. Here’s how to find us:\n\n*Address:*\nno 2, 15th main,\nVasanth Nagar,\nopposite to the shell petrol pump,\nBanglore 560001.\n\n*Directions:*\nFor your convenience, use this - https://maps.app.goo.gl/cX5LytoeHbkpDaUM6 - to get exact directions.\n\nIf you need any help finding us, just reply to this message or give us a call. We look forward to your stay!\n\nBest,\nLyxn Labs Team"
-            }
-          });
-        } else if (messageBody === '1 sharing') {
-          const buildings = ["Building 1", "Building 2", "Building 3"]; // Add your building names here
-          let currentBuildingIndex = 0;
-          let message = "";
-        
-          const fetchRoomDetails = async () => {
-            const buildingName = buildings[currentBuildingIndex];
-        
-            try {
-              // Fetch available beds in 1-sharing rooms for the specified building
-              const bedResults = await new Promise((resolve, reject) => {
-                connection.query(
-                  `SELECT beds.bed_number, rooms.room_number, flats.flat_number, floors.floor_number 
-                           FROM beds 
-                           JOIN rooms ON beds.room_id = rooms.id 
-                           JOIN flats ON rooms.flat_id = flats.id 
-                           JOIN floors ON flats.floor_id = floors.id 
-                           JOIN buildings ON floors.building_id = buildings.id 
-                           WHERE beds.available = 0 AND rooms.sharing = 1 AND buildings.name = ?`,
-                  [buildingName],
-                  (err, results) => {
-                    if (err) {
-                      reject(err);
-                    } else {
-                      resolve(results);
-                    }
-                  }
-                );
-              });
-        
-              if (bedResults.length > 0) {
-                // Add building heading to the message
-                message += `\n🏢 Building: ${buildingName} 🏢\n`;
-        
-                // Group beds by floor, flat, and room
-                const groupedBeds = {};
-                bedResults.forEach((bed) => {
-                  const key = `${bed.floor_number}-${bed.flat_number}-${bed.room_number}`;
-                  if (!groupedBeds[key]) {
-                    groupedBeds[key] = [];
-                  }
-                  groupedBeds[key].push(bed.bed_number);
-                });
-        
-                // Generate message with formatted room details
-                Object.entries(groupedBeds).forEach(([room, beds]) => {
-                  message += "Here are the available options:\n";
-                  const [floor, flat, roomNumber] = room.split('-');
-                  message += `🔹 Floor ${floor}, Flat ${flat}, Room ${roomNumber}:\n`;
-                  beds.forEach((bed, index) => {
-                    message += `  • Bed ${bed}\n`;
-                  });
-                  message += "\n";
-                });
-                } else {
-                  // If no available rooms are found in the building, inform the user
-                  message += `\n🏢 Building: ${buildingName} 🏢\n`;
-                  message += `Sorry, there are no available 4-sharing rooms in ${buildingName} at the moment.\n\n`;
-                }
-        
-              // Move to the next building
-              currentBuildingIndex++;
-        
-              // If there are more buildings, fetch room details for the next building
-              if (currentBuildingIndex < buildings.length) {
-                await fetchRoomDetails();
-              } else {
-                // Send the constructed message after processing all buildings
-                sendWhatsAppMessage({
-                  messaging_product: "whatsapp",
-                  to: senderId,
-                  type: "text",
-                  text: {
-                    body: message
-                  }
-                });
-              }
-            } catch (error) {
-              console.error('Error fetching room details:', error);
-              sendWhatsAppMessage({
-                messaging_product: "whatsapp",
-                to: senderId,
-                type: "text",
-                text: {
-                  body: "There was an error fetching the room details. Please try again later."
-                }
-              });
-            }
-          };
-        
-          // Save conversation to database and start fetching room details for the first building
-          connection.query(
-            'INSERT INTO phone_numbers (phone_number, conversation_type, created_at) VALUES (?, ?, ?)',
-            [senderId, '1 sharing', timestamp],
-            (err, result) => {
-              if (err) {
-                console.error('Error saving conversation to database:', err);
-              } else {
-                console.log('Conversation saved to database');
-                // Start fetching room details for the first building
-                fetchRoomDetails();
-              }
-            }
-          );
-        } else if (messageBody === '2 sharing') {
-          const buildings = ["Building 1", "Building 2", "Building 3"]; // Add your building names here
-          let currentBuildingIndex = 0;
-          let message = "";
-
-          const fetchRoomDetails = async () => {
-            const buildingName = buildings[currentBuildingIndex];
-
-            try {
-              // Fetch available beds in 2-sharing rooms for the specified building
-              const bedResults = await new Promise((resolve, reject) => {
-                connection.query(
-                  `SELECT beds.bed_number, rooms.room_number, flats.flat_number, floors.floor_number 
-                         FROM beds 
-                         JOIN rooms ON beds.room_id = rooms.id 
-                         JOIN flats ON rooms.flat_id = flats.id 
-                         JOIN floors ON flats.floor_id = floors.id 
-                         JOIN buildings ON floors.building_id = buildings.id 
-                         WHERE beds.available = 0 AND rooms.sharing = 2 AND buildings.name = ?`,
-                  [buildingName],
-                  (err, results) => {
-                    if (err) {
-                      reject(err);
-                    } else {
-                      resolve(results);
-                    }
-                  }
-                );
-              });
-
-              if (bedResults.length > 0) {
-                // Add building heading to the message
-                message += `\n🏢 Building: ${buildingName} 🏢\n`;
-
-                // Group beds by floor, flat, and room
-                const groupedBeds = {};
-                bedResults.forEach((bed) => {
-                  const key = `${bed.floor_number}-${bed.flat_number}-${bed.room_number}`;
-                  if (!groupedBeds[key]) {
-                    groupedBeds[key] = [];
-                  }
-                  groupedBeds[key].push(bed.bed_number);
-                });
-
-                // Generate message with formatted room details
-                Object.entries(groupedBeds).forEach(([room, beds]) => {
-                  message += "Here are the available options:\n";
-                  const [floor, flat, roomNumber] = room.split('-');
-                  message += `🔹 Floor ${floor}, Flat ${flat}, Room ${roomNumber}:\n`;
-                  beds.forEach((bed, index) => {
-                    message += `  • Bed ${bed}\n`;
-                  });
-                  message += "\n";
-                });
-                } else {
-                  // If no available rooms are found in the building, inform the user
-                  message += `\n🏢 Building: ${buildingName} 🏢\n`;
-                  message += `Sorry, there are no available 4-sharing rooms in ${buildingName} at the moment.\n\n`;
-                }
-              // Move to the next building
-              currentBuildingIndex++;
-
-              // If there are more buildings, fetch room details for the next building
-              if (currentBuildingIndex < buildings.length) {
-                await fetchRoomDetails();
-              } else {
-                // Send the constructed message
-                sendWhatsAppMessage({
-                  messaging_product: "whatsapp",
-                  to: senderId,
-                  type: "text",
-                  text: {
-                    body: message
-                  }
-                });
-              }
-            } catch (error) {
-              console.error('Error fetching room details:', error);
-              sendWhatsAppMessage({
-                messaging_product: "whatsapp",
-                to: senderId,
-                type: "text",
-                text: {
-                  body: "There was an error fetching the room details. Please try again later."
-                }
-              });
-            }
-          };
-
-          // Save conversation to database and start fetching room details for the first building
-          connection.query(
-            'INSERT INTO phone_numbers (phone_number, conversation_type, created_at) VALUES (?, ?, ?)',
-            [senderId, '2 sharing', timestamp],
-            (err, result) => {
-              if (err) {
-                console.error('Error saving conversation to database:', err);
-              } else {
-                console.log('Conversation saved to database');
-                // Start fetching room details for the first building
-                fetchRoomDetails();
-              }
-            }
-          );
-        } else if (messageBody === '3 sharing') {
-          const buildings = ["Building 1", "Building 2", "Building 3"]; // Add your building names here
-          let currentBuildingIndex = 0;
-          let message = "";
-
-          const fetchRoomDetails = async () => {
-            const buildingName = buildings[currentBuildingIndex];
-
-            try {
-              // Fetch available beds in 3-sharing rooms for the specified building
-              const bedResults = await new Promise((resolve, reject) => {
-                connection.query(
-                  `SELECT beds.bed_number, rooms.room_number, flats.flat_number, floors.floor_number 
-                      FROM beds 
-                      JOIN rooms ON beds.room_id = rooms.id 
-                      JOIN flats ON rooms.flat_id = flats.id 
-                      JOIN floors ON flats.floor_id = floors.id 
-                      JOIN buildings ON floors.building_id = buildings.id 
-                      WHERE beds.available = 0 AND rooms.sharing = 3 AND buildings.name = ?`,
-                  [buildingName],
-                  (err, results) => {
-                    if (err) {
-                      reject(err);
-                    } else {
-                      resolve(results);
-                    }
-                  }
-                );
-              });
-
-              if (bedResults.length > 0) {
-                // Add building heading to the message
-                message += `\n🏢 Building: ${buildingName} 🏢\n`;
-
-                // Group beds by floor, flat, and room
-                const groupedBeds = {};
-                bedResults.forEach((bed) => {
-                  const key = `${bed.floor_number}-${bed.flat_number}-${bed.room_number}`;
-                  if (!groupedBeds[key]) {
-                    groupedBeds[key] = [];
-                  }
-                  groupedBeds[key].push(bed.bed_number);
-                });
-
-                // Generate message with formatted room details
-                Object.entries(groupedBeds).forEach(([room, beds]) => {
-                  message += "Here are the available options:\n";
-                  const [floor, flat, roomNumber] = room.split('-');
-                  message += `🔹 Floor ${floor}, Flat ${flat}, Room ${roomNumber}:\n`;
-                  beds.forEach((bed, index) => {
-                    message += `  • Bed ${bed}\n`;
-                  });
-                  message += "\n";
-                });
-                } else {
-                  // If no available rooms are found in the building, inform the user
-                  message += `\n🏢 Building: ${buildingName} 🏢\n`;
-                  message += `Sorry, there are no available 4-sharing rooms in ${buildingName} at the moment.\n\n`;
-                }
-              // Move to the next building
-              currentBuildingIndex++;
-
-              // If there are more buildings, fetch room details for the next building
-              if (currentBuildingIndex < buildings.length) {
-                await fetchRoomDetails();
-              } else {
-                // Send the constructed message
-                sendWhatsAppMessage({
-                  messaging_product: "whatsapp",
-                  to: senderId,
-                  type: "text",
-                  text: {
-                    body: message
-                  }
-                });
-              }
-            } catch (error) {
-              console.error('Error fetching room details:', error);
-              sendWhatsAppMessage({
-                messaging_product: "whatsapp",
-                to: senderId,
-                type: "text",
-                text: {
-                  body: "There was an error fetching the room details. Please try again later."
-                }
-              });
-            }
-          };
-
-          // Save conversation to database and start fetching room details for the first building
-          connection.query(
-            'INSERT INTO phone_numbers (phone_number, conversation_type, created_at) VALUES (?, ?, ?)',
-            [senderId, '3 sharing', timestamp],
-            (err, result) => {
-              if (err) {
-                console.error('Error saving conversation to database:', err);
-              } else {
-                console.log('Conversation saved to database');
-                // Start fetching room details for the first building
-                fetchRoomDetails();
-              }
-            }
-          );
-        } else if (messageBody === '4 sharing') {
-          const buildings = ["Building 1", "Building 2", "Building 3"]; // Add your building names here
-          let currentBuildingIndex = 0;
-          let message = "";
-
-          const fetchRoomDetails = async () => {
-            const buildingName = buildings[currentBuildingIndex];
-
-            try {
-              // Fetch available beds in 4-sharing rooms for the specified building
-              const bedResults = await new Promise((resolve, reject) => {
-                connection.query(
-                  `SELECT beds.bed_number, rooms.room_number, flats.flat_number, floors.floor_number 
-                  FROM beds 
-                  JOIN rooms ON beds.room_id = rooms.id 
-                  JOIN flats ON rooms.flat_id = flats.id 
-                  JOIN floors ON flats.floor_id = floors.id 
-                  JOIN buildings ON floors.building_id = buildings.id 
-                  WHERE beds.available = 0 AND rooms.sharing = 4 AND buildings.name = ?`,
-                  [buildingName],
-                  (err, results) => {
-                    if (err) {
-                      reject(err);
-                    } else {
-                      resolve(results);
-                    }
-                  }
-                );
-              });
-
-              if (bedResults.length > 0) {
-                // Add building heading to the message
-                message += `\n🏢 Building: ${buildingName} 🏢\n`;
-
-                // Group beds by floor, flat, and room
-                const groupedBeds = {};
-                bedResults.forEach((bed) => {
-                  const key = `${bed.floor_number}-${bed.flat_number}-${bed.room_number}`;
-                  if (!groupedBeds[key]) {
-                    groupedBeds[key] = [];
-                  }
-                  groupedBeds[key].push(bed.bed_number);
-                });
-
-                // Generate message with formatted room details
-                Object.entries(groupedBeds).forEach(([room, beds]) => {
-                  message += "Here are the available options:\n";
-                  const [floor, flat, roomNumber] = room.split('-');
-                  message += `🔹 Floor ${floor}, Flat ${flat}, Room ${roomNumber}:\n`;
-                  beds.forEach((bed, index) => {
-                    message += `  • Bed ${bed}\n`;
-                  });
-                  message += "\n";
-                });
-                } else {
-                  // If no available rooms are found in the building, inform the user
-                  message += `\n🏢 Building: ${buildingName} 🏢\n`;
-                  message += `Sorry, there are no available 4-sharing rooms in ${buildingName} at the moment.\n\n`;
-                }
-
-              // Move to the next building
-              currentBuildingIndex++;
-
-              // If there are more buildings, fetch room details for the next building
-              if (currentBuildingIndex < buildings.length) {
-                await fetchRoomDetails();
-              } else {
-                // Send the constructed message
-                sendWhatsAppMessage({
-                  messaging_product: "whatsapp",
-                  to: senderId,
-                  type: "text",
-                  text: {
-                    body: message
-                  }
-                });
-              }
-            } catch (error) {
-              console.error('Error fetching room details:', error);
-              sendWhatsAppMessage({
-                messaging_product: "whatsapp",
-                to: senderId,
-                type: "text",
-                text: {
-                  body: "There was an error fetching the room details. Please try again later."
-                }
-              });
-            }
-          };
-
-          // Save conversation to database and start fetching room details for the first building
-          connection.query(
-            'INSERT INTO phone_numbers (phone_number, conversation_type, created_at) VALUES (?, ?, ?)',
-            [senderId, '4 sharing', timestamp],
-            (err, result) => {
-              if (err) {
-                console.error('Error saving conversation to database:', err);
-              } else {
-                console.log('Conversation saved to database');
-                // Start fetching room details for the first building
-                fetchRoomDetails();
-              }
-            }
-          );
-        } else if (messageBody === 'check availability') {
-          const checkAvailability = async () => {
-            try {
-              // Fetch available beds
-              const bedResults = await new Promise((resolve, reject) => {
-                connection.query('SELECT * FROM beds WHERE available = 0', (err, results) => {
-                  if (err) {
-                    reject(err);
-                  } else {
-                    resolve(results);
-                  }
-                });
-              });
-
-              // Initialize counters for each sharing value
-              let sharingCounts = { 1: 0, 2: 0, 3: 0, 4: 0 };
-
-              // Iterate through available beds
-              for (const bed of bedResults) {
-                // Fetch room sharing value for the bed
-                const roomResults = await new Promise((resolve, reject) => {
-                  connection.query('SELECT sharing FROM rooms WHERE id = ?', [bed.room_id], (err, results) => {
-                    if (err) {
-                      reject(err);
-                    } else {
-                      resolve(results);
-                    }
-                  });
-                });
-
-                // Increment the corresponding sharing count
-                if (roomResults.length > 0) {
-                  const sharing = roomResults[0].sharing;
-                  sharingCounts[sharing]++;
-                }
-              }
-
-              // Send a template message with the availability counts
-              const availabilityMessage = `*Hey there!* Here's the current availability of beds for you:\n\n *1 Sharing Rooms:* ${sharingCounts[1]} beds available\n *2 Sharing Rooms:* ${sharingCounts[2]} beds available\n *3 Sharing Rooms:* ${sharingCounts[3]} beds available\n *4 Sharing Rooms:* ${sharingCounts[4]} beds available`;
-              sendWhatsAppMessage({
-                messaging_product: "whatsapp",
-                to: senderId,
-                type: "template",
-                template: {
-                  name: "temp_6_pg", // Template name
-                  language: { code: "en_US" }
-                }
-              });
-            } catch (error) {
-              console.error('Error fetching availability:', error);
-            }
-          };
-
-          checkAvailability();
         } else if (messageBody === 'advance booking') {
-          connection.query('INSERT INTO phone_numbers (phone_number, conversation_type, created_at) VALUES (?, ?, ?)',
-            [senderId, 'advance booking', timestamp, senderId, 'advance booking', timestamp], (err, result) => {
+          connection.query(
+            'INSERT INTO phone_numbers (phone_number, conversation_type, created_at) VALUES (?, ?, ?)',
+            [senderId, 'advance booking', timestamp],
+            (err, result) => {
               if (err) {
                 console.error('Error saving conversation to database:', err);
               } else {
                 console.log('Conversation saved to database');
               }
-            });
+            }
+          );
 
           // Create a Stripe checkout session
           stripe.checkout.sessions.create({
@@ -662,39 +356,39 @@ app.post('/glast/webhook', (req, res) => {
               to: senderId,
               type: "text",
               text: {
-                body: `Please complete your payment using the following link:\n${session.url}`
+                body: `Please complete your payment by clicking the link below:\n${session.url}`
               }
             });
           }).catch(err => {
-            console.error('Error creating Stripe session:', err);
+            console.error('Error creating Stripe checkout session:', err);
             sendWhatsAppMessage({
               messaging_product: "whatsapp",
               to: senderId,
               type: "text",
               text: {
-                body: "Sorry, there was an error processing your payment. Please try again later."
+                body: "Sorry, we encountered an error while processing your booking. Please try again later."
               }
             });
           });
         } else {
+          // Default response for unrecognized messages
           sendWhatsAppMessage({
             messaging_product: "whatsapp",
             to: senderId,
             type: "text",
-            text: {
-              body: "Sorry, I didn't understand that. Please type 'hi' for assistance."
-            }
+            text: { body: "I'm sorry, I don't understand that command. Please type 'hi' to get started." }
           });
         }
       }
     }
-
-    res.sendStatus(200); // Respond to the webhook POST request
+    res.status(200).send('EVENT_RECEIVED');
   } catch (error) {
-    console.error('Error processing the webhook:', error);
-    res.sendStatus(500); // Internal Server Error
+    console.error('Error processing request:', error);
+    res.status(500).send('Error processing request');
   }
 });
+
+
 
 
 async function handlePaymentSuccess(sessionId, senderId) {
@@ -773,12 +467,12 @@ async function generateTicketPDF(ticketDetails) {
 function sendWhatsAppMessage(data) {
   const config = {
     headers: {
-      'Authorization': 'Bearer EAAFsUoRPg1QBOzpnPGEpxBDKEw93j35D2V0Qg5C8O58FNQZAxWXWMo0XJZB6ezMoUWY6xNC6AhPGUZCjt0w8AJwuyAfkhjnZAn73tOU88pXhTxAJevtKm1GSGkDFwh5y79N1eX9LWhD3ceZAZBr36MDd1fgAy0mP9UfVDIugUDGxcl64vAhpNuj7FkbG36HGJn3RQus1iw92DiNn4w',
+      'Authorization': 'Bearer EAANjrz3uCZA4BO87wqAJaDEZC2LuEhAMVaYoac0VvmKDzTqTRZBYSuYvvH8FHC1EBSI9NWDl4S9dtWVL9GWBZCY6s8I7OEEkZAWTlqra5Njt1Fo5vpn2ZC3ZAsrTcq2E2gp21jfoH80TSgV2ZB8c5Fa3XA34Th6NyT4ZBrJGTe3Go62ElgYSm7GvyJpAxaP0jAqan',
       'Content-Type': 'application/json'
     }
   };
 
-  axios.post('https://graph.facebook.com/v19.0/332700683252247/messages', data, config)
+  axios.post('https://graph.facebook.com/v19.0/296672026855498/messages', data, config)
     .then(response => {
       console.log('Message sent successfully:', response.data);
     })
@@ -788,7 +482,7 @@ function sendWhatsAppMessage(data) {
 }
 
 // Webhook verification endpoint (GET request)
-const VERIFY_TOKEN = 'EAAFsUoRPg1QBOzpnPGEpxBDKEw93j35D2V0Qg5C8O58FNQZAxWXWMo0XJZB6ezMoUWY6xNC6AhPGUZCjt0w8AJwuyAfkhjnZAn73tOU88pXhTxAJevtKm1GSGkDFwh5y79N1eX9LWhD3ceZAZBr36MDd1fgAy0mP9UfVDIugUDGxcl64vAhpNuj7FkbG36HGJn3RQus1iw92DiNn4w';
+const VERIFY_TOKEN = 'EAANjrz3uCZA4BO87wqAJaDEZC2LuEhAMVaYoac0VvmKDzTqTRZBYSuYvvH8FHC1EBSI9NWDl4S9dtWVL9GWBZCY6s8I7OEEkZAWTlqra5Njt1Fo5vpn2ZC3ZAsrTcq2E2gp21jfoH80TSgV2ZB8c5Fa3XA34Th6NyT4ZBrJGTe3Go62ElgYSm7GvyJpAxaP0jAqan';
 
 app.get('/glast/webhook', (req, res) => {
     const mode = req.query['hub.mode'];
@@ -830,560 +524,221 @@ app.get('/glast/success', async (req, res) => {
   }
 });
 
-
 /*Admin Panel code*/
+app.get('/glast/api/calendarCounts', async (req, res) => {
+  try {
+    // Query to count events by month where active = 1
+    const calendarQuery = `
+      SELECT 
+        MONTH(date) AS month,
+        COUNT(*) AS count
+      FROM calander
+      WHERE active = 1
+      GROUP BY MONTH(date)
+      ORDER BY MONTH(date)
+    `;
+    const calendarResults = await query(calendarQuery, []);
 
-app.post('/glast/addUser', (req, res) => {
-  const {
-    phone_no,
-    email,
-    password,
-    Name,
-    Position,
-    gender,
-    Role
-  } = req.body;
-
-
-  const randomString = uuid.v4().replace(/-/g, '').substr(0, 8);
-
-  // Check if the email already exists in the database
-  const checkEmailQuery = 'SELECT * FROM admins WHERE email = ?';
-  connection.query(checkEmailQuery, [email], (err, results) => {
-    if (err) {
-      console.error('Error checking email:', err);
-      res.status(500).json({ error: 'Internal server error' });
-    } else if (results.length > 0) {
-      // If email already exists, return a message
-      res.status(409).json({ error: 'User with this email already exists' });
-    } else {
-      // If email doesn't exist, proceed with user registration
-      bcrypt.hash(password, saltRounds, (hashErr, hash) => {
-        if (hashErr) {
-          console.error('Error hashing password: ', hashErr);
-          res.status(500).json({ error: 'Internal server error' });
-        } else {
-          const insertQuery =
-            'INSERT INTO admins (email, password) VALUES (?, ?)';
-          const values = [
-            email,
-            hash,
-          ];
-
-          connection.query(insertQuery, values, (insertErr, insertResults) => {
-            if (insertErr) {
-              console.error('Error inserting user: ', insertErr);
-              res.status(500).json({ error: 'Internal server error' });
-            } else {
-              console.log('User registration successful!');
-              res.sendStatus(200);
-            }
-          });
-        }
-      });
-    }
-  });
+    res.json(calendarResults);
+  } catch (error) {
+    console.error('Error fetching calendar data:', error);
+    res.status(500).json({ error: 'Error fetching calendar data' });
+  }
 });
 
-const verifyjwt = (req, res) => {
-  const token = req.headers["x-access-token"];
 
-  if (!token) {
-    res.send("no token unsuccessfull");
-  } else {
-    jwt.verify(token, "jwtsecret", (err, decoded) => {
-      if (err) {
-        res.json({ auth: false, message: "u have failed to auth" });
-      } else {
-        req.user_id = decoded.id;
+const query = (sql, params) => {
+  return new Promise((resolve, reject) => {
+    connection.query(sql, params, (error, results) => {
+      if (error) {
+        return reject(error);
       }
+      resolve(results);
     });
-  }
+  });
 };
 
-app.get("/glast/userAuth", verifyjwt, (req, res) => { });
+app.post('/glast/getCalendarEventsCount', async (req, res) => {
+  try {
+    // Fetch all columns from calendar where active = 1
+    const calendarResults = await query('SELECT * FROM calander WHERE active = 1');
+    
+    // Count the number of results
+    const count = calendarResults.length;
 
-app.get("/glast/login", (req, res) => {
-  if (req.session.user) {
-    res.send({ loggedIn: true, user: req.session.user });
-  } else {
-    res.send({ loggedIn: false });
+    // Send the results along with the count
+    res.json({ events: calendarResults, count });
+  } catch (error) {
+    console.error('Error fetching calendar events count:', error);
+    res.status(500).json({ error: 'Internal server error' });
   }
 });
 
-app.post("/glast/login", (req, res) => {
-  const email = req.body.email;
-  const password = req.body.password;
+app.post('/glast/countPhoneNumbers', (req, res) => {
+  // Query to count all entries in the phone_numbers table
+  const countPhoneNumbersQuery = `SELECT COUNT(*) AS phoneNumberCount FROM phone_numbers where conversation_type = 'book appointment'`;
+  
+  connection.query(countPhoneNumbersQuery, (err, results) => {
+    if (err) {
+      console.error('Error counting phone numbers:', err);
+      res.status(500).json({ error: 'Internal Server Error' });
+      return;
+    }
 
-  connection.query(
-    "SELECT * FROM admins WHERE email = ?",
-    email,
-    (err, result) => {
+    const phoneNumberCount = results[0].phoneNumberCount;
+    res.json({ phoneNumberCount });
+  });
+});
+
+app.post('/glast/getRegistrationsCount', async (req, res) => {
+   // Query to count all entries in the phone_numbers table
+   const countPhoneNumbersQuery = `SELECT COUNT(*) AS phoneNumberCount FROM phone_numbers`;
+  
+   connection.query(countPhoneNumbersQuery, (err, results) => {
+     if (err) {
+       console.error('Error counting phone numbers:', err);
+       res.status(500).json({ error: 'Internal Server Error' });
+       return;
+     }
+ 
+     const phoneNumberCount = results[0].phoneNumberCount;
+     res.json({ phoneNumberCount });
+   });
+});
+
+app.get('/glast/getAppointments', async (req, res) => {
+  try {
+    // Query to fetch appointments
+    const query = 'SELECT phone_number, created_at FROM phone_numbers WHERE conversation_type = "book appointment"';
+    const results = await queryDatabase(query); // Replace with your actual query function
+    res.json(results);
+  } catch (error) {
+    console.error('Error fetching appointments:', error);
+    res.status(500).json({ error: 'Internal Server Error' });
+  }
+});
+
+app.get('/glast/getquarry', async (req, res) => {
+  try {
+    // Query to fetch appointments
+    const query = 'SELECT phone_number, created_at, conversation_type FROM phone_numbers';
+    const results = await queryDatabase(query); // Replace with your actual query function
+    res.json(results);
+  } catch (error) {
+    console.error('Error fetching appointments:', error);
+    res.status(500).json({ error: 'Internal Server Error' });
+  }
+});
+
+// Function to perform the query
+const queryDatabase = (query, params = []) => {
+  return new Promise((resolve, reject) => {
+    connection.query(query, params, (err, results) => {
       if (err) {
-        res.send({ err: err });
-      }
-      if (result.length > 0) {
-        bcrypt.compare(password, result[0].password, (error, response) => {
-          if (response) {
-            const id = result[0].id;
-            const token = jwt.sign({ id }, "jwtsecret", {
-              expiresIn: 86400,
-            });
-
-            connection.query(
-              `update admins set jwt = "${token}" where email = "${email}" `,
-              (err, result) => {
-                if (err) console.log(err);
-                console.log(result);
-              }
-            );
-            req.session.user = result;
-            res.json({ auth: true, token: token, result: result });
-          } else {
-            res.json({ auth: false, message: "Email or password is wrong" });
-          }
-        });
+        reject(err);
       } else {
-        res.json({ auth: false, message: "User does not exist" });
+        resolve(results);
       }
-    }
-  );
+    });
+  });
+};
+
+
+
+// Route to fetch all advance tickets
+app.get('/glast/api/advance_tickets', async (req, res) => {
+  try {
+    // Query to fetch appointments
+    const query = 'SELECT * FROM advance_ticket';
+    const results = await queryDatabase(query); // Replace with your actual query function
+    res.json(results);
+  } catch (error) {
+    console.error('Error fetching appointments:', error);
+    res.status(500).json({ error: 'Internal Server Error' });
+  }
 });
 
-app.put('/glast/edit/member/:memberId', (req, res) => {
-  const memberId = req.params.memberId;
-  const { name, phoneno, building, floor, flat, room, bed } = req.body;
+app.post('/glast/api/create_event', upload.single('eventImage'), (req, res) => {
+  const { eventName, eventDate, eventTime, eventLocation, eventType } = req.body;
 
-  // Query to get bed_id for the specified member details
-  const getBedIdQuery = `
-    SELECT beds.id AS bed_id
-    FROM buildings
-    INNER JOIN floors ON buildings.id = floors.building_id
-    INNER JOIN flats ON floors.id = flats.floor_id
-    INNER JOIN rooms ON flats.id = rooms.flat_id
-    INNER JOIN beds ON rooms.id = beds.room_id
-    WHERE buildings.name = ? AND floors.floor_number = ? 
-      AND flats.flat_number = ? AND rooms.room_number = ? 
-      AND beds.bed_number = ?
-  `;
+  // Handle file upload if exists
+  let eventImageName = null;
+  if (req.file) {
+    eventImageName = req.file.originalname; // Use the original filename of the uploaded file
+  }
 
-  connection.query(getBedIdQuery, [building, floor, flat, room, bed], (err, results) => {
+  // Insert data into calendar table
+  const insertQuery = 'INSERT INTO calander (event_name, date, event_time, event_location, event_type, image_path, active) VALUES (?, ?, ?, ?, ?, ?, ?)';
+  connection.query(insertQuery, [eventName, eventDate, eventTime, eventLocation, eventType, eventImageName, '1'], (err, results) => {
     if (err) {
-      console.error('Error getting bed_id:', err);
-      res.status(500).send('Error getting bed_id');
+      console.error('Error inserting event:', err);
+      res.status(500).json({ error: 'Failed to create event. Please try again later.' });
       return;
     }
 
+    console.log('Event created successfully.');
+    res.json({ message: 'Event created successfully.' });
+  });
+});
+
+// Fetch all events
+app.get('/glast/api/events', (req, res) => {
+  connection.query('SELECT * FROM calander', (error, results, fields) => {
+    if (error) {
+      console.error('Error fetching events:', error);
+      res.status(500).json({ error: 'Internal Server Error' });
+      return;
+    }
+    res.json(results);
+  });
+});
+
+// Update event active status
+app.put('/glast/api/events/deactivate/:eventId', (req, res) => {
+  const { eventId } = req.params;
+  const { active } = req.body;
+
+  connection.query('UPDATE calander SET active = ? WHERE id = ?', [active, eventId], (error, results, fields) => {
+    if (error) {
+      console.error('Error updating event:', error);
+      res.status(500).json({ error: 'Internal Server Error' });
+      return;
+    }
+    res.json({ message: `Event ${eventId} updated successfully.` });
+  });
+});
+
+app.get('/glast/api/custom/events', (req, res) => {
+  // Query to fetch all records
+  const query = 'SELECT * FROM custom_event';
+
+  // Execute query
+  connection.query(query, (error, results) => {
+    if (error) {
+      console.error('Error fetching events from MySQL:', error);
+      res.status(500).json({ error: 'Failed to fetch events' });
+    } else {
+      res.json(results);
+    }
+  });
+});
+
+app.get('/glast/api/events/:eventId', (req, res) => {
+  const eventId = req.params.eventId;
+  const query = 'SELECT * FROM calander WHERE id = ?'; // Adjust query based on your schema
+  connection.query(query, [eventId], (err, results) => {
+    if (err) {
+      console.error('Error fetching event details:', err);
+      res.status(500).json({ error: 'Failed to fetch event details. Please try again later.' });
+      return;
+    }
     if (results.length === 0) {
-      console.error('bed already taken');
-      res.status(404).send('bed already taken');
+      res.status(404).json({ error: 'Event not found.' });
       return;
     }
-
-    const { bed_id } = results[0];
-
-    // Update member details
-    const updateMemberQuery = `
-      UPDATE members
-      SET name = ?, phoneno = ?, bed_id = ?
-      WHERE member_id = ?
-    `;
-
-    connection.query(updateMemberQuery, [name, phoneno, bed_id, memberId], (err, result) => {
-      if (err) {
-        console.error('Error updating member details:', err);
-        res.status(500).send('Error updating member details');
-        return;
-      }
-
-      if (result.affectedRows === 0) {
-        console.error('No member found with the specified member_id:', memberId);
-        res.status(404).send('No member found with the specified member_id');
-        return;
-      }
-
-      // Set the bed availability to 1 for the assigned bed_id
-      const setBedAvailableQuery = `
-        UPDATE beds
-        SET available = 1
-        WHERE id = ?
-      `;
-      
-      connection.query(setBedAvailableQuery, [bed_id], (err, result) => {
-        if (err) {
-          console.error('Error setting bed availability:', err);
-          res.status(500).send('Error setting bed availability');
-          return;
-        }
-
-        // Reset all beds availability to 0 where not assigned to active members
-        const resetBedAvailabilityQuery = `
-          UPDATE beds
-          SET available = 0
-          WHERE id NOT IN (
-            SELECT bed_id
-            FROM members
-            WHERE active = 1
-          )
-        `;
-        
-        connection.query(resetBedAvailabilityQuery, (err, result) => {
-          if (err) {
-            console.error('Error resetting bed availability:', err);
-            res.status(500).send('Error resetting bed availability');
-            return;
-          }
-          
-          // All operations completed successfully
-          res.status(200).send('Member details updated successfully');
-        });
-      });
-    });
+    res.json(results[0]);
   });
 });
-
-app.post('/glast/add/members', (req, res) => {
-  const { name, phoneNumber, bed, building, floor, flat, room } = req.body;
-
-  // Get the bed_id
-  const getBedIdQuery = `
-      SELECT beds.id AS bed_id
-      FROM buildings
-      INNER JOIN floors ON buildings.id = floors.building_id
-      INNER JOIN flats ON floors.id = flats.floor_id
-      INNER JOIN rooms ON flats.id = rooms.flat_id
-      INNER JOIN beds ON rooms.id = beds.room_id
-      WHERE buildings.name = ? AND floors.floor_number = ? AND flats.flat_number = ? AND rooms.room_number = ? AND beds.bed_number = ?
-  `;
-  connection.query(getBedIdQuery, [building, floor, flat, room, bed], (err, results) => {
-    if (err) {
-      console.error('Error getting bed_id:', err);
-      res.status(500).send('Error getting bed_id');
-      return;
-    }
-
-    if (results.length === 0) {
-      console.error('bed_id not found for the specified building, floor, flat, room, and bed');
-      res.status(404).send('bed_id not found for the specified building, floor, flat, room, and bed');
-      return;
-    }
-
-    const { bed_id } = results[0];
-
-    // Check if the bed is already taken
-    const checkBedAvailabilityQuery = `
-          SELECT COUNT(*) AS count 
-          FROM members 
-          WHERE bed_id = ? AND active = 1
-      `;
-    connection.query(checkBedAvailabilityQuery, [bed_id], (err, results) => {
-      if (err) {
-        console.error('Error checking bed availability:', err);
-        res.status(500).send('Error checking bed availability');
-        return;
-      }
-
-      if (results[0].count > 0) {
-        console.error('Bed is already taken');
-        res.status(400).send('Bed is already taken');
-        return;
-      }
-
-      // Update the availability of the bed
-      const updateBedAvailabilityQuery = `
-              UPDATE beds
-              SET available = 1
-              WHERE id = ?
-          `;
-      connection.query(updateBedAvailabilityQuery, [bed_id], (err, result) => {
-        if (err) {
-          console.error('Error updating bed availability:', err);
-          res.status(500).send('Error updating bed availability');
-          return;
-        }
-
-        // Insert the new member using the retrieved bed_id
-        const addMemberQuery = `
-                  INSERT INTO members (name, phoneno, bed_id, active)
-                  VALUES (?, ?, ?, 1)
-              `;
-        connection.query(addMemberQuery, [name, phoneNumber, bed_id], (err, result) => {
-          if (err) {
-            console.error('Error inserting member:', err);
-            res.status(500).send('Error inserting member');
-            return;
-          }
-          res.status(200).send('Member added successfully');
-        });
-      });
-    });
-  });
-});
-
-
-app.get('/glast/display/members', (req, res) => {
-  const membersQuery = 'SELECT * FROM members WHERE active = 1';
-
-  connection.query(membersQuery, (err, membersResults) => {
-    if (err) {
-      console.error('Error fetching members:', err);
-      res.status(500).send('Server error');
-      return;
-    }
-
-    if (membersResults.length === 0) {
-      res.json([]);
-      return;
-    }
-
-    const membersWithDetails = [];
-    let processedMembers = 0;
-
-    membersResults.forEach((member) => {
-      const bedQuery = 'SELECT * FROM beds WHERE id = ?';
-      connection.query(bedQuery, [member.bed_id], (err, bedResults) => {
-        if (err) {
-          console.error('Error fetching bed:', err);
-          res.status(500).send('Server error');
-          return;
-        }
-
-        if (bedResults.length === 0) {
-          console.error(`Bed not found for bed_id: ${member.bed_id}`);
-          processedMembers++;
-          checkAllMembersProcessed();
-          return;
-        }
-
-        const bed = bedResults[0];
-        const roomQuery = 'SELECT * FROM rooms WHERE id = ?';
-        connection.query(roomQuery, [bed.room_id], (err, roomResults) => {
-          if (err) {
-            console.error('Error fetching room:', err);
-            res.status(500).send('Server error');
-            return;
-          }
-
-          if (roomResults.length === 0) {
-            console.error(`Room not found for room_id: ${bed.room_id}`);
-            processedMembers++;
-            checkAllMembersProcessed();
-            return;
-          }
-
-          const room = roomResults[0];
-          const flatQuery = 'SELECT * FROM flats WHERE id = ?';
-          connection.query(flatQuery, [room.flat_id], (err, flatResults) => {
-            if (err) {
-              console.error('Error fetching flat:', err);
-              res.status(500).send('Server error');
-              return;
-            }
-
-            if (flatResults.length === 0) {
-              console.error(`Flat not found for flat_id: ${room.flat_id}`);
-              processedMembers++;
-              checkAllMembersProcessed();
-              return;
-            }
-
-            const flat = flatResults[0];
-            const floorQuery = 'SELECT * FROM floors WHERE id = ?';
-            connection.query(floorQuery, [flat.floor_id], (err, floorResults) => {
-              if (err) {
-                console.error('Error fetching floor:', err);
-                res.status(500).send('Server error');
-                return;
-              }
-
-              if (floorResults.length === 0) {
-                console.error(`Floor not found for floor_id: ${flat.floor_id}`);
-                processedMembers++;
-                checkAllMembersProcessed();
-                return;
-              }
-
-              const floor = floorResults[0];
-              const buildingQuery = 'SELECT * FROM buildings WHERE id = ?';
-              connection.query(buildingQuery, [floor.building_id], (err, buildingResults) => {
-                if (err) {
-                  console.error('Error fetching building:', err);
-                  res.status(500).send('Server error');
-                  return;
-                }
-
-                if (buildingResults.length === 0) {
-                  console.error(`Building not found for building_id: ${floor.building_id}`);
-                  processedMembers++;
-                  checkAllMembersProcessed();
-                  return;
-                }
-
-                const building = buildingResults[0];
-                const memberDetails = {
-                  ...member,
-                  bed,
-                  room,
-                  flat,
-                  floor,
-                  building
-                };
-
-                membersWithDetails.push(memberDetails);
-                processedMembers++;
-                checkAllMembersProcessed();
-              });
-            });
-          });
-        });
-      });
-    });
-
-    function checkAllMembersProcessed() {
-      if (processedMembers === membersResults.length) {
-        res.json(membersWithDetails);
-      }
-    }
-  });
-});
-
-
-app.get('/glast/api/vacancies', (req, res) => {
-  const vacancies = { '1 sharing': 0, '2 sharing': 0, '3 sharing': 0, '4 sharing': 0 };
-
-  // Query to count vacancies for each sharing type
-  const vacancyQuery = `
-    SELECT sharing, COUNT(*) AS count
-    FROM beds b
-    JOIN rooms r ON b.room_id = r.id
-    WHERE b.available = 0
-    GROUP BY sharing
-  `;
-
-  connection.query(vacancyQuery, (err, results) => {
-    if (err) {
-      console.error('Error fetching vacancies:', err);
-      res.status(500).json({ error: 'Internal server error' });
-      return;
-    }
-
-    // Update the vacancies object with counts for each sharing type
-    results.forEach(row => {
-      vacancies[`${row.sharing} sharing`] = row.count;
-    });
-
-    res.json(vacancies);
-  });
-});
-
-app.get('/glast/advance_tickets', (req, res) => {
-  const query = 'SELECT * FROM advance_ticket';
-
-  connection.query(query, (err, results) => {
-    if (err) {
-      console.error('Error querying database: ', err);
-      res.status(500).json({ error: 'Error querying database' });
-      return;
-    }
-    res.json(results);
-  });
-});
-
-
-app.get('/glast/api/phone-numbers', (req, res) => {
-  const query = 'SELECT * FROM phone_numbers';
-
-  connection.query(query, (err, results) => {
-    if (err) {
-      console.error('Error fetching phone numbers:', err);
-      res.status(500).send('Error fetching phone numbers');
-      return;
-    }
-
-    res.json(results);
-  });
-});
-app.post('/glast/addMembers', (req, res) => {
-  const { name, phoneNo, bedId } = req.body;
-
-  connection.query('INSERT INTO members (name, phoneno, bed_id) VALUES (?, ?, ?)', [name, phoneNo, bedId], (err, results) => {
-    if (err) return res.status(500).send(err);
-
-    connection.query('UPDATE beds SET available = 1 WHERE id = ?', [bedId], (err, results) => {
-      if (err) return res.status(500).send(err);
-      res.send('Member added and bed updated');
-    });
-  });
-});
-
-app.get('/glast/beds/:sharing', (req, res) => {
-  const sharing = req.params.sharing;
-
-  connection.query(`
-    SELECT 
-      beds.id AS bedId, 
-      beds.bed_number,
-      rooms.room_number,
-      flats.flat_number,
-      floors.floor_number,
-      buildings.name AS buildingName
-    FROM beds
-    JOIN rooms ON beds.room_id = rooms.id
-    JOIN flats ON rooms.flat_id = flats.id
-    JOIN floors ON flats.floor_id = floors.id
-    JOIN buildings ON floors.building_id = buildings.id
-    WHERE beds.available = 0 AND rooms.sharing = ?
-  `, [sharing], (err, results) => {
-    if (err) return res.status(500).send(err);
-    res.json(results);
-  });
-});
-
-app.put('/glast/api/updateMember/:id', (req, res) => {
-  const memberId = req.params.id;
-
-  const sqlUpdateMember = 'UPDATE members SET active = ? WHERE member_id = ?';
-  const valuesUpdateMember = [false, memberId];
-
-  const sqlFetchBedId = 'SELECT bed_id FROM members WHERE member_id = ?';
-  const sqlUpdateBedAvailability = 'UPDATE beds SET available = ? WHERE id = ?';
-
-  connection.query(sqlUpdateMember, valuesUpdateMember, (err, result) => {
-    if (err) {
-      console.error('Error updating member:', err);
-      res.status(500).json({ error: 'Error updating member' });
-      return;
-    }
-
-    connection.query(sqlFetchBedId, [memberId], (err, rows) => {
-      if (err) {
-        console.error('Error fetching bed id:', err);
-        res.status(500).json({ error: 'Error updating member' });
-        return;
-      }
-
-      if (rows.length === 0) {
-        console.error('No bed found for member:', memberId);
-        res.status(404).json({ error: 'No bed found for member' });
-        return;
-      }
-
-      const bedId = rows[0].bed_id;
-
-      connection.query(sqlUpdateBedAvailability, [0, bedId], (err, result) => {
-        if (err) {
-          console.error('Error updating bed availability:', err);
-          res.status(500).json({ error: 'Error updating member' });
-          return;
-        }
-
-        console.log('Member and bed updated successfully');
-        res.status(200).json({ message: 'Member deactivated successfully' });
-      });
-    });
-  });
-});
-
 
 app.listen(PORT, () => {
   console.log(`Server is running on port ${PORT}`);
