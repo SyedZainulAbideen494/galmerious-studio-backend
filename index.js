@@ -22,7 +22,7 @@ const fs = require('fs');
 const moment = require('moment');
 
 // URL Constants
-const BASE_URL = 'https://kraftpoint.in/glast';
+const BASE_URL = 'https://4f40bc69c3707e6f9eaa771fc195bae8.serveo.net/glast';
 const SUCCESS_URL = `${BASE_URL}/success?session_id={CHECKOUT_SESSION_ID}&sender_id=`;
 const CANCEL_URL = `${BASE_URL}/cancel`;
 const TICKET_URL = `${BASE_URL}/tickets/`;
@@ -129,7 +129,7 @@ app.post('/glast/webhook', (req, res) => {
                     parameters: [
                       {
                         type: "video",
-                        video: { link: "https://kraftpoint.in/glast/hi_vid.mp4" } // Provide a valid video link
+                        video: { link: "https://4f40bc69c3707e6f9eaa771fc195bae8.serveo.net/glast/hi_vid.mp4" } // Provide a valid video link
                       }
                     ]
                   }
@@ -140,49 +140,26 @@ app.post('/glast/webhook', (req, res) => {
             console.error('Error sending message:', err);
           }
         } else if (messageBody === 'custom events package') {
-          userStates[senderId].step = 20; // Update user state to indicate the current step
+          // Set user state to indicate the current step
+          userStates[senderId].step = 20;
+        
+          // Send a direct message asking for event details
           sendWhatsAppMessage({
-              recipient_type: "individual",
-              messaging_product: "whatsapp",
-              to: senderId,
-              type: "interactive",
-              interactive: {
-                type: "flow",
-                header: {
-                  type: "text",
-                  text: "Custom Event Details",
-                },
-                body: {
-                  text: "Hey there👋\n\n please enter the details about your event",
-                },
-                footer: {
-                  text: "Click the button below to enter the details",
-                },
-                action: {
-                  name: "flow",
-                  parameters: {
-                    flow_message_version: "3",
-                    flow_token: "AQAAAAACS5FpgQ_cAAAAAD0QI3s.",
-                    flow_id: '486692000608369',
-                    flow_cta: "Enter Details",
-                    flow_action: "navigate",
-                    flow_action_payload: {
-                      screen: "CUSTOMER_DETAILS", // Change this to the appropriate screen ID
-                      data: { firstName: "Mohammed" }, // You can pass additional data here if needed
-                    },
-                  },
-                },
-            }
+            messaging_product: "whatsapp",
+            to: senderId,
+            type: "text",
+            text: { body: "Please enter the details about your event." }
           });
         } else if (userStates[senderId].step === 20) {
           const issueDescription = messageBody;
+          
           // Prepare an object with data to insert into the database
           const eventData = {
             sender_id: senderId,
             message_body: issueDescription,
             created_at: new Date().toISOString().slice(0, 19).replace('T', ' ') // Format: YYYY-MM-DD HH:MM:SS
           };
-        
+          
           // Insert into MySQL table `custom_event`
           const insertQuery = 'INSERT INTO custom_event (sender_id, message_body, created_at) VALUES (?, ?, ?)';
           connection.query(insertQuery, [eventData.sender_id, eventData.message_body, eventData.created_at], (error, results, fields) => {
@@ -240,7 +217,7 @@ app.post('/glast/webhook', (req, res) => {
             to: senderId,
             type: "template",
             template: {
-              name: "_glamstudio_temp_2_", // Corrected template name
+              name: "_glamstudio_temp_2", // Corrected template name
               language: { code: "en_US" }
             }
           });
@@ -339,7 +316,7 @@ app.post('/glast/webhook', (req, res) => {
             payment_method_types: ['card'],
             line_items: [{
               price_data: {
-                currency: 'inr',
+                currency: 'usd',
                 product_data: {
                   name: 'Advance Booking',
                 },
@@ -467,12 +444,12 @@ async function generateTicketPDF(ticketDetails) {
 function sendWhatsAppMessage(data) {
   const config = {
     headers: {
-      'Authorization': 'Bearer EAANjrz3uCZA4BO87wqAJaDEZC2LuEhAMVaYoac0VvmKDzTqTRZBYSuYvvH8FHC1EBSI9NWDl4S9dtWVL9GWBZCY6s8I7OEEkZAWTlqra5Njt1Fo5vpn2ZC3ZAsrTcq2E2gp21jfoH80TSgV2ZB8c5Fa3XA34Th6NyT4ZBrJGTe3Go62ElgYSm7GvyJpAxaP0jAqan',
+      'Authorization': 'Bearer EAAFsUoRPg1QBO6Mm9ydl0lRB4AinHZBHjAep6RBHJxaMzfcOYsdEZCUsbpl4eMQzzJxHlordiR3QS2AnKYNPiTkgaGNDEwqWIjrRmwhLN3j6BtKQFZAwJmFkyPunTYaUsW2N6mqRZCZCX98T7WIVIYpEGDntOWfg5rX47COOfMs1zIAjP9Gh936q4bw7NRNFIRlkMwOhmD0eVDcbvhvQGiaZCNbf0OumUX4CRcxR0Gn8kZD',
       'Content-Type': 'application/json'
     }
   };
 
-  axios.post('https://graph.facebook.com/v19.0/296672026855498/messages', data, config)
+  axios.post('https://graph.facebook.com/v20.0/332700683252247/messages', data, config)
     .then(response => {
       console.log('Message sent successfully:', response.data);
     })
@@ -482,7 +459,7 @@ function sendWhatsAppMessage(data) {
 }
 
 // Webhook verification endpoint (GET request)
-const VERIFY_TOKEN = 'EAANjrz3uCZA4BO87wqAJaDEZC2LuEhAMVaYoac0VvmKDzTqTRZBYSuYvvH8FHC1EBSI9NWDl4S9dtWVL9GWBZCY6s8I7OEEkZAWTlqra5Njt1Fo5vpn2ZC3ZAsrTcq2E2gp21jfoH80TSgV2ZB8c5Fa3XA34Th6NyT4ZBrJGTe3Go62ElgYSm7GvyJpAxaP0jAqan';
+const VERIFY_TOKEN = 'EAAFsUoRPg1QBO6Mm9ydl0lRB4AinHZBHjAep6RBHJxaMzfcOYsdEZCUsbpl4eMQzzJxHlordiR3QS2AnKYNPiTkgaGNDEwqWIjrRmwhLN3j6BtKQFZAwJmFkyPunTYaUsW2N6mqRZCZCX98T7WIVIYpEGDntOWfg5rX47COOfMs1zIAjP9Gh936q4bw7NRNFIRlkMwOhmD0eVDcbvhvQGiaZCNbf0OumUX4CRcxR0Gn8kZD';
 
 app.get('/glast/webhook', (req, res) => {
     const mode = req.query['hub.mode'];
